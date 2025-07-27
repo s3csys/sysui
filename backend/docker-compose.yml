@@ -1,0 +1,68 @@
+version: '3.8'
+
+services:
+  mysql:
+    image: mysql:8.0
+    container_name: s3csys-mysql
+    restart: unless-stopped
+    environment:
+      MYSQL_ROOT_PASSWORD: ${MYSQL_ROOT_PASSWORD:-rootpassword}
+      MYSQL_DATABASE: ${MYSQL_DATABASE:-s3csys}
+      MYSQL_USER: ${MYSQL_USER:-s3csys}
+      MYSQL_PASSWORD: ${MYSQL_PASSWORD:-s3csys}
+    ports:
+      - "${MYSQL_PORT:-3306}:3306"
+    volumes:
+      - mysql_data:/var/lib/mysql
+    command: --default-authentication-plugin=mysql_native_password
+    healthcheck:
+      test: ["CMD", "mysqladmin", "ping", "-h", "localhost", "-u$$MYSQL_USER", "-p$$MYSQL_PASSWORD"]
+      interval: 10s
+      timeout: 5s
+      retries: 5
+
+  redis:
+    image: redis:7.0-alpine
+    container_name: s3csys-redis
+    restart: unless-stopped
+    ports:
+      - "${REDIS_PORT:-6379}:6379"
+    volumes:
+      - redis_data:/data
+    command: redis-server --requirepass ${REDIS_PASSWORD:-redispassword}
+    healthcheck:
+      test: ["CMD", "redis-cli", "-a", "${REDIS_PASSWORD:-redispassword}", "ping"]
+      interval: 10s
+      timeout: 5s
+      retries: 5
+
+  # Uncomment to add a web-based MySQL admin tool
+  # phpmyadmin:
+  #   image: phpmyadmin/phpmyadmin
+  #   container_name: s3csys-phpmyadmin
+  #   restart: unless-stopped
+  #   environment:
+  #     PMA_HOST: mysql
+  #     PMA_PORT: 3306
+  #     PMA_USER: root
+  #     PMA_PASSWORD: ${MYSQL_ROOT_PASSWORD:-rootpassword}
+  #   ports:
+  #     - "8080:80"
+  #   depends_on:
+  #     - mysql
+
+  # Uncomment to add a Redis web UI
+  # redis-commander:
+  #   image: rediscommander/redis-commander:latest
+  #   container_name: s3csys-redis-commander
+  #   restart: unless-stopped
+  #   environment:
+  #     REDIS_HOSTS: local:redis:6379:0:${REDIS_PASSWORD:-redispassword}
+  #   ports:
+  #     - "8081:8081"
+  #   depends_on:
+  #     - redis
+
+volumes:
+  mysql_data:
+  redis_data:
