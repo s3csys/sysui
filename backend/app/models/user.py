@@ -1,7 +1,7 @@
 from sqlalchemy import Boolean, Column, String, Enum, Text, ForeignKey, Integer, DateTime
-from sqlalchemy.orm import relationship
+from sqlalchemy.orm import relationship, Mapped, mapped_column
 import enum
-from typing import List, Optional, Set
+from typing import List, Optional, Set, ClassVar
 from datetime import datetime
 
 from app.models.base import Base
@@ -38,34 +38,36 @@ class UserRole(str, enum.Enum):
 class User(Base):
     """User model for authentication and authorization"""
     
+    __allow_unmapped__ = True  # Allow legacy annotations to be used alongside Mapped
+    
     # Basic user information
-    username = Column(String(50), unique=True, index=True, nullable=False)
-    email = Column(String(100), unique=True, index=True, nullable=False)
-    full_name = Column(String(100), nullable=True)
+    username: Mapped[str] = mapped_column(String(50), unique=True, index=True, nullable=False)
+    email: Mapped[str] = mapped_column(String(100), unique=True, index=True, nullable=False)
+    full_name: Mapped[Optional[str]] = mapped_column(String(100), nullable=True)
     
     # Authentication fields
-    hashed_password = Column(String(100), nullable=False)
-    is_active = Column(Boolean(), default=True, nullable=False)
-    is_verified = Column(Boolean(), default=False, nullable=False)
-    verification_token = Column(String(100), nullable=True)
+    hashed_password: Mapped[str] = mapped_column(String(100), nullable=False)
+    is_active: Mapped[bool] = mapped_column(Boolean(), default=True, nullable=False)
+    is_verified: Mapped[bool] = mapped_column(Boolean(), default=False, nullable=False)
+    verification_token: Mapped[Optional[str]] = mapped_column(String(100), nullable=True)
     
     # Authorization fields
-    role = Column(Enum(UserRole), default=UserRole.VIEWER, nullable=False)
+    role: Mapped[UserRole] = mapped_column(Enum(UserRole), default=UserRole.VIEWER, nullable=False)
     
     # Custom permissions (many-to-many relationship)
-    custom_permissions = relationship(
+    custom_permissions: Mapped[Set["permission"]] = relationship(
         "permission",
         secondary=user_permission_association,
         collection_class=set
     )
     
     # 2FA fields
-    is_2fa_enabled = Column(Boolean(), default=False, nullable=False)
+    is_2fa_enabled: Mapped[bool] = mapped_column(Boolean(), default=False, nullable=False)
     
     # Relationships
-    totp_secret = relationship("TOTPSecret", back_populates="user", uselist=False, cascade="all, delete-orphan")
-    backup_codes = relationship("BackupCode", back_populates="user", cascade="all, delete-orphan")
-    sessions = relationship("Session", back_populates="user", cascade="all, delete-orphan")
+    totp_secret: Mapped[Optional["TOTPSecret"]] = relationship("TOTPSecret", back_populates="user", uselist=False, cascade="all, delete-orphan")
+    backup_codes: Mapped[List["BackupCode"]] = relationship("BackupCode", back_populates="user", cascade="all, delete-orphan")
+    sessions: Mapped[List["Session"]] = relationship("Session", back_populates="user", cascade="all, delete-orphan")
     
     def has_permission(self, permission: str) -> bool:
         """Check if the user has a specific permission.
@@ -95,12 +97,14 @@ class User(Base):
 class TOTPSecret(Base):
     """TOTP secret for 2FA"""
     
-    user_id = Column(Integer, ForeignKey("user.id", ondelete="CASCADE"), nullable=False, unique=True)
-    secret = Column(String(50), nullable=False)
-    is_verified = Column(Boolean(), default=False, nullable=False)
+    __allow_unmapped__ = True  # Allow legacy annotations to be used alongside Mapped
+    
+    user_id: Mapped[int] = mapped_column(Integer, ForeignKey("user.id", ondelete="CASCADE"), nullable=False, unique=True)
+    secret: Mapped[str] = mapped_column(String(50), nullable=False)
+    is_verified: Mapped[bool] = mapped_column(Boolean(), default=False, nullable=False)
     
     # Relationships
-    user = relationship("User", back_populates="totp_secret")
+    user: Mapped["User"] = relationship("User", back_populates="totp_secret")
     
     def __repr__(self) -> str:
         return f"<TOTPSecret user_id={self.user_id}>"
@@ -109,12 +113,14 @@ class TOTPSecret(Base):
 class BackupCode(Base):
     """Backup codes for 2FA recovery"""
     
-    user_id = Column(Integer, ForeignKey("user.id", ondelete="CASCADE"), nullable=False)
-    hashed_code = Column(String(100), nullable=False)
-    is_used = Column(Boolean(), default=False, nullable=False)
+    __allow_unmapped__ = True  # Allow legacy annotations to be used alongside Mapped
+    
+    user_id: Mapped[int] = mapped_column(Integer, ForeignKey("user.id", ondelete="CASCADE"), nullable=False)
+    hashed_code: Mapped[str] = mapped_column(String(100), nullable=False)
+    is_used: Mapped[bool] = mapped_column(Boolean(), default=False, nullable=False)
     
     # Relationships
-    user = relationship("User", back_populates="backup_codes")
+    user: Mapped["User"] = relationship("User", back_populates="backup_codes")
     
     def __repr__(self) -> str:
         return f"<BackupCode user_id={self.user_id} is_used={self.is_used}>"
@@ -123,15 +129,17 @@ class BackupCode(Base):
 class Session(Base):
     """User session for tracking active logins"""
     
-    user_id = Column(Integer, ForeignKey("user.id", ondelete="CASCADE"), nullable=False)
-    refresh_token = Column(String(255), nullable=False, unique=True)
-    user_agent = Column(Text, nullable=True)
-    ip_address = Column(String(50), nullable=True)
-    expires_at = Column(DateTime, nullable=False)
-    is_active = Column(Boolean(), default=True, nullable=False)
+    __allow_unmapped__ = True  # Allow legacy annotations to be used alongside Mapped
+    
+    user_id: Mapped[int] = mapped_column(Integer, ForeignKey("user.id", ondelete="CASCADE"), nullable=False)
+    refresh_token: Mapped[str] = mapped_column(String(255), nullable=False, unique=True)
+    user_agent: Mapped[Optional[str]] = mapped_column(Text, nullable=True)
+    ip_address: Mapped[Optional[str]] = mapped_column(String(50), nullable=True)
+    expires_at: Mapped[datetime] = mapped_column(DateTime, nullable=False)
+    is_active: Mapped[bool] = mapped_column(Boolean(), default=True, nullable=False)
     
     # Relationships
-    user = relationship("User", back_populates="sessions")
+    user: Mapped["User"] = relationship("User", back_populates="sessions")
     
     def __repr__(self) -> str:
         return f"<Session user_id={self.user_id} is_active={self.is_active}>"
