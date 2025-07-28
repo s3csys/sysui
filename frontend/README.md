@@ -47,10 +47,20 @@ This is the frontend application for SysUI, a comprehensive server management in
    cd frontend
    ```
 
-4. Install dependencies
-   ```
-   npm install
-   ```
+4. Run the installation script
+   - For development environment:
+     - Linux/macOS: `./install.sh`
+     - Windows: `install.bat`
+   - For production build:
+     - Linux/macOS: `./install.sh prod`
+     - Windows: `install.bat prod`
+
+   The script will:
+   - Check if npm is installed (and attempt to install it on Linux/macOS)
+   - Install dependencies
+   - Set up environment variables
+   - Start the development server or build for production based on the argument
+
 
 ### Development
 
