@@ -55,10 +55,11 @@ class User(Base):
     role: Mapped[UserRole] = mapped_column(Enum(UserRole), default=UserRole.VIEWER, nullable=False)
     
     # Custom permissions (many-to-many relationship)
-    custom_permissions: Mapped[Set["permission"]] = relationship(
-        "permission",
+    # This is a collection of permission strings from the Permission enum
+    custom_permissions: Mapped[Set[str]] = relationship(
         secondary=user_permission_association,
-        collection_class=set
+        collection_class=set,
+        lazy="joined"
     )
     
     # 2FA fields
