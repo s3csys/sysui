@@ -39,6 +39,14 @@ class Settings(BaseSettings):
 
     # Database
     SQLALCHEMY_DATABASE_URI: Optional[str] = None
+    DATABASE_URI: Optional[str] = None
+    
+    @field_validator("SQLALCHEMY_DATABASE_URI", mode="before")
+    def validate_database_uri(cls, v: Optional[str], info) -> Optional[str]:
+        # If SQLALCHEMY_DATABASE_URI is not set, try to use DATABASE_URI
+        if not v and info.data.get("DATABASE_URI"):
+            return info.data.get("DATABASE_URI")
+        return v
     
     # Redis
     REDIS_HOST: str = "localhost"
