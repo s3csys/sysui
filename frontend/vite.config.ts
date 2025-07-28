@@ -26,13 +26,14 @@ export default defineConfig(({ mode }) => {
     port: parseInt(env.VITE_SERVER_PORT || '5173'),
     allowedHosts: allowedHosts,
     proxy: {
-      '/api': {
-        target: env.VITE_API_URL || 'http://localhost:8000',
+      '/api': {  // Proxy API requests to the backend
+        target: env.VITE_API_URL || 'http://127.0.0.1:8000',
         changeOrigin: true,
         secure: false,
+        // The backend expects requests at /api/v1/auth/register
         rewrite: (path) => path.replace(/^\/api/, '/api/v1'),
-      },
-    },
+      }
+    }
   },
   test: {
     globals: true,
