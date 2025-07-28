@@ -2,7 +2,7 @@ from fastapi import Depends, HTTPException, status, Request
 from typing import List, Union
 
 from app.models.user import User, UserRole
-from app.models.permission import Permission
+from app.models.permission import PermissionEnum
 from app.core.security import log_security_violation
 from app.api.auth.auth import get_current_active_verified_user
 

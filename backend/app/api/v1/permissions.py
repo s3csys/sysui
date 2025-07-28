@@ -1,8 +1,8 @@
 from fastapi import APIRouter, Depends, HTTPException, status, Request
-from typing import List
+from typing import List, Set
 
 from app.models.user import User, UserRole
-from app.models.permission import Permission
+from app.models.permission import PermissionEnum, Permission
 from app.models.user_permission import UserPermission
 from app.api.auth.dependencies import require_admin, require_permission
 from app.api.auth.auth import get_current_active_verified_user
@@ -20,18 +20,18 @@ router = APIRouter()
 
 
 @router.get("/permissions", response_model=PermissionList)
-async def list_permissions(current_user: User = Depends(require_permission(Permission.VIEW_SYSTEM_SETTINGS))):
+async def list_permissions(current_user: User = Depends(require_permission(PermissionEnum.VIEW_SYSTEM_SETTINGS))):
     """
     List all available permissions in the system.
     
     Requires: VIEW_SYSTEM_SETTINGS permission
     """
-    permissions = Permission.get_all_permissions()
+    permissions = PermissionEnum.get_all_permissions()
     return {"permissions": permissions}
 
 
 @router.get("/users/{user_id}/permissions", response_model=UserPermissions)
-async def get_user_permissions(user_id: int, current_user: User = Depends(require_permission(Permission.VIEW_USERS)), request: Request = None):
+async def get_user_permissions(user_id: int, current_user: User = Depends(require_permission(PermissionEnum.VIEW_USERS)), request: Request = None):
     """
     Get permissions for a specific user.
     
@@ -47,8 +47,8 @@ async def get_user_permissions(user_id: int, current_user: User = Depends(requir
         raise HTTPException(status_code=status.HTTP_404_NOT_FOUND, detail="User not found")
     
     # Get permissions
-    role_permissions = Permission.get_role_permissions(user.role.value)
-    custom_permissions = set(user.custom_permissions)
+    role_permissions = PermissionEnum.get_role_permissions(user.role.value)
+    custom_permissions = {permission.name for permission in user.custom_permissions}
     all_permissions = role_permissions.union(custom_permissions)
     
     # Log audit event
@@ -72,7 +72,7 @@ async def get_user_permissions(user_id: int, current_user: User = Depends(requir
 
 
 @router.post("/users/permissions/add", status_code=status.HTTP_200_OK)
-async def add_permission_to_user(request_data: AddPermissionRequest, current_user: User = Depends(require_permission(Permission.CHANGE_USER_ROLE)), request: Request = None):
+async def add_permission_to_user(request_data: AddPermissionRequest, current_user: User = Depends(require_permission(PermissionEnum.CHANGE_USER_ROLE)), request: Request = None):
     """
     Add a custom permission to a user.
     
@@ -84,7 +84,7 @@ async def add_permission_to_user(request_data: AddPermissionRequest, current_use
     db = next(get_db())
     
     # Validate permission
-    if request_data.permission not in Permission.get_all_permissions():
+    if request_data.permission not in PermissionEnum.get_all_permissions():
         raise HTTPException(
             status_code=status.HTTP_400_BAD_REQUEST,
             detail=f"Invalid permission: {request_data.permission}"
@@ -95,9 +95,16 @@ async def add_permission_to_user(request_data: AddPermissionRequest, current_use
     if not user:
         raise HTTPException(status_code=status.HTTP_404_NOT_FOUND, detail="User not found")
     
+    # Check if permission already exists in database
+    permission = db.query(Permission).filter(Permission.name == request_data.permission).first()
+    if not permission:
+        # Create permission if it doesn't exist
+        permission = Permission(name=request_data.permission)
+        db.add(permission)
+    
     # Add permission if not already present
-    if request_data.permission not in user.custom_permissions:
-        user.custom_permissions.add(request_data.permission)
+    if permission not in user.custom_permissions:
+        user.custom_permissions.add(permission)
         db.commit()
     
     # Log audit event
@@ -115,7 +122,7 @@ async def add_permission_to_user(request_data: AddPermissionRequest, current_use
 
 
 @router.post("/users/permissions/remove", status_code=status.HTTP_200_OK)
-async def remove_permission_from_user(request_data: RemovePermissionRequest, current_user: User = Depends(require_permission(Permission.CHANGE_USER_ROLE)), request: Request = None):
+async def remove_permission_from_user(request_data: RemovePermissionRequest, current_user: User = Depends(require_permission(PermissionEnum.CHANGE_USER_ROLE)), request: Request = None):
     """
     Remove a custom permission from a user.
     
@@ -131,9 +138,12 @@ async def remove_permission_from_user(request_data: RemovePermissionRequest, cur
     if not user:
         raise HTTPException(status_code=status.HTTP_404_NOT_FOUND, detail="User not found")
     
+    # Find the permission object
+    permission = db.query(Permission).filter(Permission.name == request_data.permission).first()
+    
     # Remove permission if present
-    if request_data.permission in user.custom_permissions:
-        user.custom_permissions.remove(request_data.permission)
+    if permission and permission in user.custom_permissions:
+        user.custom_permissions.remove(permission)
         db.commit()
     
     # Log audit event

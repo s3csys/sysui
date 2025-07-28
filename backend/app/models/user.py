@@ -12,6 +12,7 @@ from app.models.user_permission import user_permission_association
 # Use TYPE_CHECKING for type hints to avoid circular imports
 if TYPE_CHECKING:
     from app.models.user_permission import UserPermission
+    from app.models.permission import Permission
 
 
 class UserRole(str, enum.Enum):
@@ -43,17 +44,17 @@ class UserRole(str, enum.Enum):
     @classmethod
     def get_role_permissions(cls, role: "UserRole") -> Set[str]:
         """Get permissions for a specific role"""
-        from app.models.permission import Permission
+        from app.models.permission import PermissionEnum
         
         if role == cls.ADMIN:
             # Admin has all permissions
-            return set(Permission.get_all_permissions())
+            return set(PermissionEnum.get_all_permissions())
         elif role == cls.EDITOR:
             # Editor has editor and viewer permissions
-            return set(Permission.get_role_permissions("editor"))
+            return set(PermissionEnum.get_role_permissions("editor"))
         elif role == cls.VIEWER:
             # Viewer has only viewer permissions
-            return set(Permission.get_role_permissions("viewer"))
+            return set(PermissionEnum.get_role_permissions("viewer"))
         else:
             return set()
 
@@ -78,13 +79,17 @@ class User(Base):
     role: Mapped[UserRole] = mapped_column(Enum(UserRole), default=UserRole.VIEWER, nullable=False)
     
     # Custom permissions (many-to-many relationship)
-    # This is a collection of permission strings from the Permission enum
-    custom_permissions: Mapped[Set[str]] = relationship(
+    # This is a collection of Permission objects
+    custom_permissions: Mapped[Set["Permission"]] = relationship(
+        "Permission",
         secondary=user_permission_association,
         collection_class=set,
         lazy="joined",
         cascade="save-update, merge, refresh-expire, expunge",
-        uselist=True
+        back_populates="users",
+        uselist=True,
+        primaryjoin="User.id == user_permission_association.c.user_id",
+        secondaryjoin="Permission.name == user_permission_association.c.permission_name"
     )
     
     # 2FA fields
@@ -130,7 +135,15 @@ class User(Base):
             return True
         
         # Finally check custom permissions
-        return permission in self.custom_permissions if self.custom_permissions else False
+        if self.custom_permissions:
+            # Check if the permission name is in the user's custom permissions
+            # Use the Permission model's attributes
+            from app.models.permission import PermissionEnum
+            return any(perm.name == permission or 
+                      (hasattr(perm, 'permission_enum') and 
+                       perm.permission_enum == permission) 
+                      for perm in self.custom_permissions)
+        return False
     
     def get_permissions(self) -> Set[str]:
         """Get all permissions for the user.
@@ -144,7 +157,15 @@ class User(Base):
         # Combine with custom permissions
         all_permissions = set(role_permissions)
         if self.custom_permissions:
-            all_permissions.update(self.custom_permissions)
+            # Extract permission names from Permission objects
+            from app.models.permission import PermissionEnum
+            custom_permission_names = set()
+            for perm in self.custom_permissions:
+                if hasattr(perm, 'permission_enum') and perm.permission_enum:
+                    custom_permission_names.add(perm.permission_enum)
+                else:
+                    custom_permission_names.add(perm.name)
+            all_permissions.update(custom_permission_names)
             
         return all_permissions
     

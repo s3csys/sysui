@@ -96,25 +96,28 @@ class UserPermissions(BaseModel):
     user_id: int = Field(..., description="User ID")
     username: str = Field(..., description="Username")
     role: str = Field(..., description="User role")
-    role_permissions: Set[str] = Field(..., description="Permissions from user's role")
-    custom_permissions: Set[str] = Field(..., description="Custom permissions assigned to user")
+    role_permissions: Set[str] = Field(..., description="Permissions granted by role")
+    custom_permissions: Set[str] = Field(..., description="Custom permissions granted to user")
     all_permissions: Set[str] = Field(..., description="All permissions (role + custom)")
+    
+    class Config:
+        orm_mode = True
 
 
 class AddPermissionRequest(BaseModel):
     """Schema for adding a permission to a user"""
     user_id: int = Field(..., description="User ID")
-    permission: str = Field(..., description="Permission to add")
+    permission: str = Field(..., description="Permission to add (permission name or enum value)")
 
 
 class RemovePermissionRequest(BaseModel):
     """Schema for removing a permission from a user"""
     user_id: int = Field(..., description="User ID")
-    permission: str = Field(..., description="Permission to remove")
+    permission: str = Field(..., description="Permission to remove (permission name or enum value)")
 
 
 class PermissionCheckResponse(BaseModel):
     """Schema for permission check response"""
     has_permission: bool = Field(..., description="Whether the user has the permission")
-    permission: str = Field(..., description="The permission that was checked")
+    permission: str = Field(..., description="The permission that was checked (permission name or enum value)")
     user_id: int = Field(..., description="User ID")

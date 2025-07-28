@@ -1,8 +1,13 @@
 from enum import Enum, auto
 from typing import List, Set, Dict, Optional
+from sqlalchemy import Column, String
+from sqlalchemy.orm import relationship, Mapped, mapped_column
+
+from app.models.base import Base
+from app.models.user_permission import user_permission_association
 
 
-class Permission(str, Enum):
+class PermissionEnum(str, Enum):
     """Enum representing granular permissions in the system"""
     
     # User management permissions
@@ -63,3 +68,41 @@ class Permission(str, Enum):
             List[str]: A list of all permission names
         """
         return [perm.value for perm in cls]
+
+
+class Permission(Base):
+    """SQLAlchemy model for permissions"""
+    
+    __tablename__ = "permissions"
+    
+    name = Column(String(50), primary_key=True)
+    users = relationship(
+        "User", 
+        secondary=user_permission_association, 
+        back_populates="custom_permissions",
+        primaryjoin="Permission.name == user_permission_association.c.permission_name",
+        secondaryjoin="user_permission_association.c.user_id == User.id"
+    )
+    
+    def __init__(self, name: str):
+        self.name = name
+        # No need to set permission_enum here as it's computed dynamically
+    
+    # Store the enum value in a private attribute
+    _permission_enum = None
+    
+    @property
+    def permission_enum(self) -> Optional[PermissionEnum]:
+        try:
+            return PermissionEnum(self.name)
+        except ValueError:
+            return None
+            
+    @permission_enum.setter
+    def permission_enum(self, value):
+        # This is just a placeholder to avoid errors
+        # The actual value is always computed from name
+        pass
+    
+    def __repr__(self):
+        return f"<Permission {self.name}>"

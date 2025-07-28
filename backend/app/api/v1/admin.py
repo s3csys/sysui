@@ -4,7 +4,7 @@ from typing import List, Union
 
 from app.db import get_db
 from app.models.user import User, UserRole
-from app.models.permission import Permission
+from app.models.permission import PermissionEnum
 from app.api.auth.dependencies import require_admin, require_editor, require_viewer, require_permission
 from app.api.auth.auth import get_current_active_verified_user
 from app.api.auth.schemas import UserResponse
@@ -16,7 +16,7 @@ router = APIRouter()
 @router.get("/users", response_model=List[UserResponse])
 async def get_users(
     request: Request,
-    current_user: User = Depends(require_permission(Permission.VIEW_USERS)), 
+    current_user: User = Depends(require_permission(PermissionEnum.VIEW_USERS)), 
     db: Session = Depends(get_db)
 ):
     """
@@ -49,7 +49,7 @@ async def get_users(
 @router.get("/users/{user_id}", response_model=UserResponse)
 async def get_user(
     user_id: int, 
-    current_user: User = Depends(require_permission(Permission.VIEW_USERS)), 
+    current_user: User = Depends(require_permission(PermissionEnum.VIEW_USERS)), 
     db: Session = Depends(get_db), 
     request: Request = None
 ):
@@ -57,7 +57,7 @@ async def get_user(
     Get a specific user. Requires VIEW_USERS permission (admin or editor role by default).
     """
     # Allow users to view their own profile regardless of permissions
-    if user_id != current_user.id and not current_user.has_permission(Permission.VIEW_USERS):
+    if user_id != current_user.id and not current_user.has_permission(PermissionEnum.VIEW_USERS):
         raise HTTPException(status_code=403, detail="Insufficient permissions to view other users")
     
     user = db.query(User).filter(User.id == user_id).first()
