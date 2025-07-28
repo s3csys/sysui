@@ -7,7 +7,7 @@ from app.core.security import log_security_violation
 from app.api.auth.auth import get_current_active_verified_user
 
 
-async def require_role(required_role: UserRole, current_user: User = Depends(get_current_active_verified_user), request: Optional[Request] = None) -> User:
+async def require_role(required_role: UserRole, current_user: User = Depends(get_current_active_verified_user), request: Request = None) -> User:
     """
     Dependency to check if the current user has the required role or higher privileges.
     
@@ -47,7 +47,7 @@ async def require_role(required_role: UserRole, current_user: User = Depends(get
     )
 
 
-async def require_admin(current_user: User = Depends(get_current_active_verified_user), request: Optional[Request] = None) -> User:
+async def require_admin(current_user: User = Depends(get_current_active_verified_user), request: Request = None) -> User:
     """
     Dependency to check if the current user is an admin.
     
@@ -86,7 +86,7 @@ async def require_admin(current_user: User = Depends(get_current_active_verified
     )
 
 
-async def require_editor(current_user: User = Depends(get_current_active_verified_user), request: Optional[Request] = None) -> User:
+async def require_editor(current_user: User = Depends(get_current_active_verified_user), request: Request = None) -> User:
     """
     Dependency to check if the current user is an editor or admin.
     
@@ -125,7 +125,7 @@ async def require_editor(current_user: User = Depends(get_current_active_verifie
     )
 
 
-async def require_viewer(current_user: User = Depends(get_current_active_verified_user), request: Optional[Request] = None) -> User:
+async def require_viewer(current_user: User = Depends(get_current_active_verified_user), request: Request = None) -> User:
     """
     Dependency to check if the current user is a viewer, editor, or admin.
     
@@ -175,7 +175,7 @@ def require_permission(required_permission: Union[str, List[str]]):
     Returns:
         Dependency function that checks if the current user has the required permission
     """
-    async def check_permission(current_user: User = Depends(get_current_active_verified_user), request: Optional[Request] = None) -> User:
+    async def check_permission(current_user: User = Depends(get_current_active_verified_user), request: Request = None) -> User:
         # Convert single permission to list for consistent handling
         if isinstance(required_permission, str):
             required_permissions = [required_permission]
@@ -224,7 +224,7 @@ def require_all_permissions(required_permissions: List[str]):
     Returns:
         Dependency function that checks if the current user has all the required permissions
     """
-    async def check_all_permissions(current_user: User = Depends(get_current_active_verified_user), request: Optional[Request] = None) -> User:
+    async def check_all_permissions(current_user: User = Depends(get_current_active_verified_user), request: Request = None) -> User:
         # Get all user permissions (role-based + custom)
         user_permissions = current_user.get_permissions()
         

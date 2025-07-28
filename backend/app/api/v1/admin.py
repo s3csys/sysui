@@ -17,7 +17,7 @@ router = APIRouter()
 async def get_users(
     current_user: User = Depends(require_permission(Permission.VIEW_USERS)), 
     db: Session = Depends(get_db), 
-    request: Request = None
+    request: Request = Depends(Request)
 ):
     """
     Get all users. Requires VIEW_USERS permission (admin role by default).
