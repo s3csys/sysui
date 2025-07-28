@@ -8,7 +8,7 @@ from app.models.permission import Permission
 from app.api.auth.dependencies import require_admin, require_editor, require_viewer, require_permission
 from app.api.auth.auth import get_current_active_verified_user
 from app.api.auth.schemas import UserResponse
-from app.core.security import log_security_event, log_audit_event
+from app.core.security.logger import log_security_event, log_audit_event
 
 router = APIRouter()
 

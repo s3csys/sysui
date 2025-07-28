@@ -7,7 +7,7 @@ from app.models.user import User
 from app.api.auth.schemas import UserResponse
 from app.api.auth.dependencies import get_current_active_verified_user
 from app.core.security.password import get_password_hash, verify_password
-from app.core.logging import log_audit_event, log_security_event
+from app.core.security.logger import log_audit_event, log_security_event
 
 router = APIRouter()
 
