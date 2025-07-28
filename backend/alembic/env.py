@@ -24,7 +24,12 @@ target_metadata = Base.metadata
 from app.core.config import settings
 
 # Override sqlalchemy.url with actual database URI from settings
-config.set_main_option("sqlalchemy.url", settings.DATABASE_URI)
+if settings.DATABASE_URI and isinstance(settings.DATABASE_URI, str):
+    config.set_main_option("sqlalchemy.url", settings.DATABASE_URI)
+elif settings.SQLALCHEMY_DATABASE_URI and isinstance(settings.SQLALCHEMY_DATABASE_URI, str):
+    config.set_main_option("sqlalchemy.url", settings.SQLALCHEMY_DATABASE_URI)
+else:
+    raise ValueError("Database URI is not configured. Please set DATABASE_URI or SQLALCHEMY_DATABASE_URI in your environment variables.")
 
 # other values from the config, defined by the needs of env.py,
 # can be acquired:
