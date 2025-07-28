@@ -1,18 +1,19 @@
-from typing import Any, ClassVar
-from sqlalchemy.orm import DeclarativeBase, Mapped, mapped_column, declared_attr
-from sqlalchemy import Integer, DateTime
+from typing import Any
+from sqlalchemy.ext.declarative import declarative_base, declared_attr
+from sqlalchemy import Column, Integer, DateTime
 from datetime import datetime
 
 
-class Base(DeclarativeBase):
-    __allow_unmapped__ = True  # Allow legacy annotations to be used alongside Mapped
-    
+class BaseModel:
     # Generate __tablename__ automatically based on class name
-    @declared_attr.directive
+    @declared_attr
     def __tablename__(cls) -> str:
         return cls.__name__.lower()
     
     # Common columns for all models
-    id: Mapped[int] = mapped_column(Integer, primary_key=True, index=True)
-    created_at: Mapped[datetime] = mapped_column(DateTime, default=datetime.utcnow, nullable=False)
-    updated_at: Mapped[datetime] = mapped_column(DateTime, default=datetime.utcnow, onupdate=datetime.utcnow, nullable=False)
+    id = Column(Integer, primary_key=True, index=True)
+    created_at = Column(DateTime, default=datetime.utcnow, nullable=False)
+    updated_at = Column(DateTime, default=datetime.utcnow, onupdate=datetime.utcnow, nullable=False)
+
+
+Base = declarative_base(cls=BaseModel)
