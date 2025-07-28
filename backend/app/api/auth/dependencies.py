@@ -165,39 +165,35 @@ async def require_viewer(current_user: User = Depends(get_current_active_verifie
     )
 
 
-async def require_permission(required_permission: Union[str, List[str]], current_user: User = Depends(get_current_active_verified_user), request: Optional[Request] = None) -> User:
+def require_permission(required_permission: Union[str, List[str]]):
     """
-    Dependency to check if the current user has the required permission(s).
+    Dependency factory to check if the current user has the required permission(s).
     
     Args:
         required_permission: The required permission or list of permissions (any one is sufficient)
-        current_user: The current user
-        request: Optional FastAPI request object
         
     Returns:
-        User: The current user if they have the required permission
-        
-    Raises:
-        HTTPException: If the user doesn't have the required permission
+        Dependency function that checks if the current user has the required permission
     """
-    # Convert single permission to list for consistent handling
-    if isinstance(required_permission, str):
-        required_permissions = [required_permission]
-    else:
-        required_permissions = required_permission
-    
-    # Get all user permissions (role-based + custom)
-    user_permissions = current_user.get_permissions()
-    
-    # Check if user has any of the required permissions
-    for permission in required_permissions:
-        if permission in user_permissions:
-            return current_user
-    
-    # Log security violation
-    if request:
-        log_security_violation(
-            "insufficient_permissions",
+    async def check_permission(current_user: User = Depends(get_current_active_verified_user), request: Optional[Request] = None) -> User:
+        # Convert single permission to list for consistent handling
+        if isinstance(required_permission, str):
+            required_permissions = [required_permission]
+        else:
+            required_permissions = required_permission
+        
+        # Get all user permissions (role-based + custom)
+        user_permissions = current_user.get_permissions()
+        
+        # Check if user has any of the required permissions
+        for permission in required_permissions:
+            if permission in user_permissions:
+                return current_user
+        
+        # Log security violation
+        if request:
+            log_security_violation(
+                "insufficient_permissions",
             {
                 "user_id": current_user.id,
                 "username": current_user.username,
@@ -209,55 +205,55 @@ async def require_permission(required_permission: Union[str, List[str]], current
             },
             request
         )
+        
+        raise HTTPException(
+            status_code=status.HTTP_403_FORBIDDEN,
+            detail="Insufficient permissions"
+        )
     
-    raise HTTPException(
-        status_code=status.HTTP_403_FORBIDDEN,
-        detail="Insufficient permissions"
-    )
+    return check_permission
 
 
-async def require_all_permissions(required_permissions: List[str], current_user: User = Depends(get_current_active_verified_user), request: Optional[Request] = None) -> User:
+def require_all_permissions(required_permissions: List[str]):
     """
-    Dependency to check if the current user has all the required permissions.
+    Dependency factory to check if the current user has all the required permissions.
     
     Args:
         required_permissions: List of required permissions (all are required)
-        current_user: The current user
-        request: Optional FastAPI request object
         
     Returns:
-        User: The current user if they have all the required permissions
-        
-    Raises:
-        HTTPException: If the user doesn't have all the required permissions
+        Dependency function that checks if the current user has all the required permissions
     """
-    # Get all user permissions (role-based + custom)
-    user_permissions = current_user.get_permissions()
-    
-    # Check if user has all required permissions
-    missing_permissions = [perm for perm in required_permissions if perm not in user_permissions]
-    
-    if not missing_permissions:
-        return current_user
-    
-    # Log security violation
-    if request:
-        log_security_violation(
-            "insufficient_permissions",
-            {
-                "user_id": current_user.id,
-                "username": current_user.username,
-                "user_role": current_user.role.value,
-                "required_permissions": required_permissions,
-                "missing_permissions": missing_permissions,
-                "user_permissions": list(user_permissions),
-                "path": request.url.path,
-                "method": request.method
-            },
-            request
+    async def check_all_permissions(current_user: User = Depends(get_current_active_verified_user), request: Optional[Request] = None) -> User:
+        # Get all user permissions (role-based + custom)
+        user_permissions = current_user.get_permissions()
+        
+        # Check if user has all required permissions
+        missing_permissions = [perm for perm in required_permissions if perm not in user_permissions]
+        
+        if not missing_permissions:
+            return current_user
+        
+        # Log security violation
+        if request:
+            log_security_violation(
+                "insufficient_permissions",
+                {
+                    "user_id": current_user.id,
+                    "username": current_user.username,
+                    "user_role": current_user.role.value,
+                    "required_permissions": required_permissions,
+                    "missing_permissions": missing_permissions,
+                    "user_permissions": list(user_permissions),
+                    "path": request.url.path,
+                    "method": request.method
+                },
+                request
+            )
+        
+        raise HTTPException(
+            status_code=status.HTTP_403_FORBIDDEN,
+            detail="Insufficient permissions"
         )
     
-    raise HTTPException(
-        status_code=status.HTTP_403_FORBIDDEN,
-        detail="Insufficient permissions"
-    )
+    return check_all_permissions
