@@ -1,4 +1,5 @@
-from pydantic import BaseSettings, AnyHttpUrl, validator
+from pydantic import AnyHttpUrl, field_validator
+from pydantic_settings import BaseSettings
 from typing import List, Optional, Dict, Any, Union
 import secrets
 from pathlib import Path
@@ -13,11 +14,22 @@ class Settings(BaseSettings):
     REFRESH_TOKEN_EXPIRE_MINUTES: int = 60 * 24 * 30
     SERVER_NAME: str = "SysUI"
     SERVER_HOST: AnyHttpUrl = "http://localhost:8000"
+    API_HOST: str = "0.0.0.0"
+    API_PORT: int = 8000
     
     # CORS
     BACKEND_CORS_ORIGINS: List[AnyHttpUrl] = []
+    
+    # Security Logging
+    SECURITY_LOG_LEVEL: str = "INFO"
+    SECURITY_LOG_FORMAT: str = "%(asctime)s - %(name)s - %(levelname)s - %(message)s"
+    SECURITY_LOG_HANDLERS: str = "console"
+    SECURITY_LOG_FILE: Optional[str] = None
+    SECURITY_LOG_MAX_BYTES: int = 10485760  # 10MB
+    SECURITY_LOG_BACKUP_COUNT: int = 5
+    SECURITY_LOG_PII_FIELDS: str = "password,token,secret,email,hashed_password,verification_token,reset_token,refresh_token,access_token"
 
-    @validator("BACKEND_CORS_ORIGINS", pre=True)
+    @field_validator("BACKEND_CORS_ORIGINS", mode="before")
     def assemble_cors_origins(cls, v: Union[str, List[str]]) -> Union[List[str], str]:
         if isinstance(v, str) and not v.startswith("["):
             return [i.strip() for i in v.split(",")]
@@ -39,6 +51,10 @@ class Settings(BaseSettings):
     # 2FA
     TOTP_ISSUER: str = "SysUI"
     
+    # JWT Token
+    TOKEN_ISSUER: str = "sysui-auth"
+    TOKEN_AUDIENCE: str = "sysui-api"
+    
     # Email
     SMTP_TLS: bool = True
     SMTP_PORT: Optional[int] = None
@@ -48,27 +64,29 @@ class Settings(BaseSettings):
     EMAILS_FROM_EMAIL: Optional[str] = None
     EMAILS_FROM_NAME: Optional[str] = None
 
-    @validator("EMAILS_FROM_NAME")
-    def get_project_name(cls, v: Optional[str], values: Dict[str, Any]) -> str:
+    @field_validator("EMAILS_FROM_NAME")
+    def get_project_name(cls, v: Optional[str], info) -> str:
         if not v:
-            return values["SERVER_NAME"]
+            return info.data["SERVER_NAME"]
         return v
 
     EMAIL_RESET_TOKEN_EXPIRE_HOURS: int = 48
     EMAIL_TEMPLATES_DIR: str = "/app/app/email-templates/build"
     EMAILS_ENABLED: bool = False
 
-    @validator("EMAILS_ENABLED", pre=True)
-    def get_emails_enabled(cls, v: bool, values: Dict[str, Any]) -> bool:
+    @field_validator("EMAILS_ENABLED", mode="before")
+    def get_emails_enabled(cls, v: bool, info) -> bool:
         return bool(
-            values.get("SMTP_HOST")
-            and values.get("SMTP_PORT")
-            and values.get("EMAILS_FROM_EMAIL")
+            info.data.get("SMTP_HOST")
+            and info.data.get("SMTP_PORT")
+            and info.data.get("EMAILS_FROM_EMAIL")
         )
 
-    class Config:
-        case_sensitive = True
-        env_file = ".env"
+    model_config = {
+        "case_sensitive": True, 
+        "env_file": ".env",
+        "extra": "allow"
+    }
 
 
 settings = Settings()

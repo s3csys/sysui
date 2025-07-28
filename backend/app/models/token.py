@@ -15,6 +15,7 @@ class TokenPayload(BaseModel):
     sub: Optional[str] = None
     exp: int = Field(..., description="Expiration timestamp")
     type: str = Field(..., description="Token type (access or refresh)")
+    fgp: Optional[str] = Field(None, description="Token fingerprint based on user agent or device info")
 
 
 class TokenData(BaseModel):

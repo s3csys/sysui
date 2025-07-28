@@ -1,5 +1,5 @@
 from pydantic import BaseModel, EmailStr, validator, Field
-from typing import Optional, List
+from typing import Optional, List, Set
 
 from app.core.security.password import validate_password
 
@@ -79,3 +79,42 @@ class PasswordResetConfirm(BaseModel):
         if error:
             raise ValueError(error)
         return v
+
+
+class PermissionBase(BaseModel):
+    """Base schema for permission operations"""
+    name: str = Field(..., description="Permission name")
+
+
+class PermissionList(BaseModel):
+    """Schema for listing all available permissions"""
+    permissions: List[str] = Field(..., description="List of all available permissions")
+
+
+class UserPermissions(BaseModel):
+    """Schema for user permissions"""
+    user_id: int = Field(..., description="User ID")
+    username: str = Field(..., description="Username")
+    role: str = Field(..., description="User role")
+    role_permissions: Set[str] = Field(..., description="Permissions from user's role")
+    custom_permissions: Set[str] = Field(..., description="Custom permissions assigned to user")
+    all_permissions: Set[str] = Field(..., description="All permissions (role + custom)")
+
+
+class AddPermissionRequest(BaseModel):
+    """Schema for adding a permission to a user"""
+    user_id: int = Field(..., description="User ID")
+    permission: str = Field(..., description="Permission to add")
+
+
+class RemovePermissionRequest(BaseModel):
+    """Schema for removing a permission from a user"""
+    user_id: int = Field(..., description="User ID")
+    permission: str = Field(..., description="Permission to remove")
+
+
+class PermissionCheckResponse(BaseModel):
+    """Schema for permission check response"""
+    has_permission: bool = Field(..., description="Whether the user has the permission")
+    permission: str = Field(..., description="The permission that was checked")
+    user_id: int = Field(..., description="User ID")

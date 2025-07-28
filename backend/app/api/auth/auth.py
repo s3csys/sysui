@@ -8,7 +8,7 @@ from app.models.token import Token, TokenData, RefreshTokenRequest, SessionInfo,
 from app.models.user import User
 from app.services.auth import AuthService
 from app.services.email import email_service
-from app.core.security import verify_token
+from app.core.security import verify_token, log_auth_success, log_auth_failure, log_security_event, log_security_violation, generate_fingerprint, verify_fingerprint
 from app.api.auth.schemas import (
     UserCreate, 
     UserResponse, 
@@ -26,13 +26,14 @@ router = APIRouter()
 oauth2_scheme = OAuth2PasswordBearer(tokenUrl="/api/v1/auth/login")
 
 
-async def get_current_user(token: str = Depends(oauth2_scheme), db: Session = Depends(get_db)) -> User:
+async def get_current_user(token: str = Depends(oauth2_scheme), db: Session = Depends(get_db), request: Request = None) -> User:
     """
     Get the current user from the token.
     
     Args:
         token: JWT token
         db: Database session
+        request: FastAPI request object for fingerprint verification
         
     Returns:
         User: The current user
@@ -40,25 +41,52 @@ async def get_current_user(token: str = Depends(oauth2_scheme), db: Session = De
     Raises:
         HTTPException: If token is invalid or user not found
     """
-    token_data = verify_token(token, "access")
+    # Generate fingerprint from user agent if available
+    fingerprint = None
+    ip_address = None
+    if request:
+        fingerprint = generate_fingerprint(request.headers.get("user-agent"))
+        ip_address = request.client.host if request.client else None
+    
+    token_data = verify_token(token, "access", fingerprint, ip_address)
     if not token_data:
+        if request:
+            log_security_violation(
+                "token_validation_failure",
+                {"reason": "Invalid token or fingerprint mismatch"},
+                request
+            )
         raise HTTPException(
             status_code=status.HTTP_401_UNAUTHORIZED,
-            detail="Invalid authentication credentials",
+            detail="Authentication failed",
             headers={"WWW-Authenticate": "Bearer"},
         )
     
     user = db.query(User).filter(User.id == token_data.sub).first()
     if not user:
+        if request:
+            log_security_violation(
+                "token_validation_failure",
+                {"reason": "User not found"},
+                request
+            )
         raise HTTPException(
-            status_code=status.HTTP_404_NOT_FOUND,
-            detail="User not found"
+            status_code=status.HTTP_401_UNAUTHORIZED,
+            detail="Authentication failed",
+            headers={"WWW-Authenticate": "Bearer"},
         )
     
     if not user.is_active:
+        if request:
+            log_security_violation(
+                "token_validation_failure",
+                {"reason": "User inactive", "user_id": user.id, "username": user.username},
+                request
+            )
         raise HTTPException(
-            status_code=status.HTTP_400_BAD_REQUEST,
-            detail="Inactive user"
+            status_code=status.HTTP_401_UNAUTHORIZED,
+            detail="Authentication failed",
+            headers={"WWW-Authenticate": "Bearer"},
         )
     
     return user
@@ -79,20 +107,22 @@ async def get_current_active_verified_user(current_user: User = Depends(get_curr
     """
     if not current_user.is_verified:
         raise HTTPException(
-            status_code=status.HTTP_400_BAD_REQUEST,
-            detail="Email not verified"
+            status_code=status.HTTP_401_UNAUTHORIZED,
+            detail="Authentication failed",
+            headers={"WWW-Authenticate": "Bearer"},
         )
     
     return current_user
 
 
-async def check_2fa_required(current_user: User = Depends(get_current_user), token: str = Depends(oauth2_scheme)) -> User:
+async def check_2fa_required(current_user: User = Depends(get_current_user), token: str = Depends(oauth2_scheme), request: Request = None) -> User:
     """
     Check if 2FA is required for the current user.
     
     Args:
         current_user: The current user
         token: JWT token
+        request: FastAPI request object for fingerprint verification
         
     Returns:
         User: The current user
@@ -100,19 +130,38 @@ async def check_2fa_required(current_user: User = Depends(get_current_user), tok
     Raises:
         HTTPException: If 2FA is required but not verified
     """
-    token_data = verify_token(token, "access")
+    # Generate fingerprint from user agent if available
+    fingerprint = None
+    ip_address = None
+    if request:
+        fingerprint = generate_fingerprint(request.headers.get("user-agent"))
+        ip_address = request.client.host if request.client else None
+    
+    token_data = verify_token(token, "access", fingerprint, ip_address)
     if not token_data:
+        if request:
+            log_security_violation(
+                "token_validation_failure",
+                {"reason": "Invalid token or fingerprint mismatch", "user_id": current_user.id, "username": current_user.username},
+                request
+            )
         raise HTTPException(
             status_code=status.HTTP_401_UNAUTHORIZED,
-            detail="Invalid authentication credentials",
+            detail="Authentication failed",
             headers={"WWW-Authenticate": "Bearer"},
         )
     
     # Check if 2FA is required but not verified
     if current_user.is_2fa_enabled and not token_data.is_2fa_verified:
+        if request:
+            log_security_violation(
+                "2fa_verification_required",
+                {"user_id": current_user.id, "username": current_user.username},
+                request
+            )
         raise HTTPException(
             status_code=status.HTTP_401_UNAUTHORIZED,
-            detail="2FA verification required",
+            detail="Authentication failed",
             headers={"WWW-Authenticate": "Bearer"},
         )
     
@@ -152,15 +201,22 @@ async def register(user_in: UserCreate, db: Session = Depends(get_db)):
 
 
 @router.post("/verify-email", response_model=dict)
-async def verify_email(verification: EmailVerification, db: Session = Depends(get_db)):
+async def verify_email(verification: EmailVerification, db: Session = Depends(get_db), request: Request = None):
     """
     Verify a user's email address.
     """
     success = AuthService.verify_email(db=db, token=verification.token)
     if not success:
+        log_security_event(
+            "email_verification_failure",
+            {"token": "[redacted]"},
+            request,
+            "warning"
+        )
         raise HTTPException(
-            status_code=status.HTTP_400_BAD_REQUEST,
-            detail="Invalid verification token"
+            status_code=status.HTTP_401_UNAUTHORIZED,
+            detail="Authentication failed",  # Generic error message for security
+            headers={"WWW-Authenticate": "Bearer"},
         )
     
     return {"message": "Email verified successfully"}
@@ -183,17 +239,20 @@ async def login(
     )
     
     if not user:
+        log_auth_failure(form_data.username, "invalid_credentials", request)
         raise HTTPException(
             status_code=status.HTTP_401_UNAUTHORIZED,
-            detail="Incorrect username or password",
+            detail="Authentication failed",  # Generic error message for security
             headers={"WWW-Authenticate": "Bearer"},
         )
     
     # Check if user is verified
     if not user.is_verified:
+        log_auth_failure(form_data.username, "email_not_verified", request)
         raise HTTPException(
-            status_code=status.HTTP_400_BAD_REQUEST,
-            detail="Email not verified"
+            status_code=status.HTTP_401_UNAUTHORIZED,
+            detail="Authentication failed",  # Generic error message for security
+            headers={"WWW-Authenticate": "Bearer"},
         )
     
     # Get user agent and IP address
@@ -207,6 +266,9 @@ async def login(
         ip_address=ip_address,
         db=db
     )
+    
+    # Log successful login
+    log_auth_success(user.username, user.id, request)
     
     # Return tokens
     return Token(
@@ -225,9 +287,21 @@ async def refresh_token(
     """
     Refresh an access token using a refresh token.
     """
-    # Verify refresh token
-    token_data = verify_token(refresh_request.refresh_token, "refresh")
+    # Generate fingerprint from user agent if available
+    user_agent = request.headers.get("user-agent")
+    fingerprint = generate_fingerprint(user_agent)
+    
+    # Get IP address from request
+    ip_address = request.client.host if request.client else None
+    
+    # Verify refresh token with fingerprint and IP address
+    token_data = verify_token(refresh_request.refresh_token, "refresh", fingerprint, ip_address)
     if not token_data:
+        log_security_violation(
+            "refresh_token_validation_failure",
+            {"reason": "Invalid token or fingerprint mismatch"},
+            request
+        )
         raise HTTPException(
             status_code=status.HTTP_401_UNAUTHORIZED,
             detail="Invalid refresh token",
@@ -237,6 +311,11 @@ async def refresh_token(
     # Get user
     user = db.query(User).filter(User.id == token_data.sub).first()
     if not user or not user.is_active:
+        log_security_violation(
+            "refresh_token_validation_failure",
+            {"reason": "User not found or inactive", "user_id": token_data.sub},
+            request
+        )
         raise HTTPException(
             status_code=status.HTTP_401_UNAUTHORIZED,
             detail="Invalid refresh token",
@@ -251,6 +330,11 @@ async def refresh_token(
     ).first()
     
     if not session:
+        log_security_violation(
+            "refresh_token_validation_failure",
+            {"reason": "Token not found in active sessions", "user_id": user.id, "username": user.username},
+            request
+        )
         raise HTTPException(
             status_code=status.HTTP_401_UNAUTHORIZED,
             detail="Invalid refresh token",
@@ -258,14 +342,20 @@ async def refresh_token(
         )
     
     # Get user agent and IP address
-    user_agent = request.headers.get("user-agent")
     ip_address = request.client.host if request.client else None
+    
+    # Log successful token refresh
+    log_security_event(
+        "token_refresh",
+        {"user_id": user.id, "username": user.username},
+        request
+    )
     
     # Invalidate old refresh token
     session.is_active = False
     db.commit()
     
-    # Create new tokens
+    # Create new tokens with fingerprint
     access_token, refresh_token = AuthService.create_tokens(
         user=user,
         user_agent=user_agent,
@@ -327,29 +417,51 @@ async def verify_2fa(
     """
     Verify a 2FA token during login.
     """
-    # Verify access token
-    token_data = verify_token(token, "access")
+    # Generate fingerprint from user agent if available
+    fingerprint = None
+    user_agent = request.headers.get("user-agent")
+    if user_agent:
+        fingerprint = generate_fingerprint(user_agent)
+    
+    # Get IP address from request
+    ip_address = request.client.host if request.client else None
+    
+    # Verify access token with fingerprint and IP address
+    token_data = verify_token(token, "access", fingerprint, ip_address)
     if not token_data:
+        log_security_event(
+            "invalid_token",
+            {"token_type": "access"},
+            request,
+            "warning"
+        )
         raise HTTPException(
             status_code=status.HTTP_401_UNAUTHORIZED,
-            detail="Invalid authentication credentials",
+            detail="Authentication failed",
             headers={"WWW-Authenticate": "Bearer"},
         )
     
     # Get user
     user = db.query(User).filter(User.id == token_data.sub).first()
     if not user or not user.is_active:
+        log_security_event(
+            "user_not_found_or_inactive",
+            {"user_id": token_data.sub},
+            request,
+            "warning"
+        )
         raise HTTPException(
             status_code=status.HTTP_401_UNAUTHORIZED,
-            detail="Invalid authentication credentials",
+            detail="Authentication failed",
             headers={"WWW-Authenticate": "Bearer"},
         )
     
     # Verify 2FA token
     if not AuthService.verify_2fa(db=db, user_id=user.id, token=verify_request.token):
+        log_auth_failure(user.username, "invalid_2fa_token", request)
         raise HTTPException(
             status_code=status.HTTP_401_UNAUTHORIZED,
-            detail="Invalid 2FA token",
+            detail="Authentication failed",
             headers={"WWW-Authenticate": "Bearer"},
         )
     
@@ -359,8 +471,8 @@ async def verify_2fa(
     
     # Create new tokens with 2FA verified
     token_data = AuthService.get_token_data(user=user, is_2fa_verified=True)
-    access_token = create_access_token(subject=token_data.dict())
-    refresh_token = create_refresh_token(subject=user.id)
+    access_token = create_access_token(subject=token_data.dict(), fingerprint=fingerprint, ip_address=ip_address)
+    refresh_token = create_refresh_token(subject=user.id, fingerprint=fingerprint, ip_address=ip_address)
     
     # Store refresh token
     AuthService.store_refresh_token(
@@ -370,6 +482,9 @@ async def verify_2fa(
         user_agent=user_agent,
         ip_address=ip_address
     )
+    
+    # Log successful 2FA verification
+    log_auth_success(user.username, user.id, request)
     
     # Return tokens
     return Token(
@@ -382,17 +497,32 @@ async def verify_2fa(
 @router.post("/2fa/disable")
 async def disable_2fa(
     current_user: User = Depends(get_current_active_verified_user),
-    db: Session = Depends(get_db)
+    db: Session = Depends(get_db),
+    request: Request = None
 ):
     """
     Disable 2FA for the current user.
     """
     success = AuthService.disable_2fa(db=db, user_id=current_user.id)
     if not success:
-        raise HTTPException(
-            status_code=status.HTTP_400_BAD_REQUEST,
-            detail="Failed to disable 2FA"
+        log_security_event(
+            "2fa_disable_failure",
+            {"user_id": current_user.id, "username": current_user.username},
+            request,
+            "warning"
         )
+        raise HTTPException(
+            status_code=status.HTTP_401_UNAUTHORIZED,
+            detail="Authentication failed",
+            headers={"WWW-Authenticate": "Bearer"},
+        )
+    
+    # Log successful 2FA disabling
+    log_security_event(
+        "2fa_disabled",
+        {"user_id": current_user.id, "username": current_user.username},
+        request
+    )
     
     return {"message": "2FA disabled successfully"}
 
@@ -401,13 +531,24 @@ async def disable_2fa(
 async def get_sessions(
     current_user: User = Depends(get_current_active_verified_user),
     token: str = Depends(oauth2_scheme),
-    db: Session = Depends(get_db)
+    db: Session = Depends(get_db),
+    request: Request = None
 ):
     """
     Get active sessions for the current user.
     """
     # Get refresh token from request
-    token_data = verify_token(token, "access")
+    # Get IP address from request if available
+    ip_address = request.client.host if hasattr(request, 'client') and request.client else None
+    
+    # Generate fingerprint from user agent if available
+    fingerprint = None
+    if hasattr(request, 'headers'):
+        user_agent = request.headers.get("user-agent")
+        if user_agent:
+            fingerprint = generate_fingerprint(user_agent)
+    
+    token_data = verify_token(token, "access", fingerprint, ip_address)
     if not token_data:
         raise HTTPException(
             status_code=status.HTTP_401_UNAUTHORIZED,
@@ -438,17 +579,31 @@ async def get_sessions(
 async def terminate_session(
     session_id: int,
     current_user: User = Depends(get_current_active_verified_user),
-    db: Session = Depends(get_db)
+    db: Session = Depends(get_db),
+    request: Request = None
 ):
     """
     Terminate a session for the current user.
     """
     success = AuthService.terminate_session(db=db, session_id=session_id, user_id=current_user.id)
     if not success:
+        log_security_event(
+            "session_termination_attempt",
+            {"user_id": current_user.id, "session_id": session_id, "status": "not_found"},
+            request,
+            "warning"
+        )
         raise HTTPException(
             status_code=status.HTTP_404_NOT_FOUND,
             detail="Session not found"
         )
+    
+    # Log session termination
+    log_security_event(
+        "session_terminated",
+        {"user_id": current_user.id, "session_id": session_id},
+        request
+    )
     
     return {"message": "Session terminated successfully"}
 
@@ -457,14 +612,31 @@ async def terminate_session(
 async def terminate_all_sessions(
     current_user: User = Depends(get_current_active_verified_user),
     token: str = Depends(oauth2_scheme),
-    db: Session = Depends(get_db)
+    db: Session = Depends(get_db),
+    request: Request = None
 ):
     """
     Terminate all sessions for the current user except the current one.
     """
     # Get refresh token from request
-    token_data = verify_token(token, "access")
+    # Get IP address from request if available
+    ip_address = request.client.host if request and request.client else None
+    
+    # Generate fingerprint from user agent if available
+    fingerprint = None
+    if request:
+        user_agent = request.headers.get("user-agent")
+        if user_agent:
+            fingerprint = generate_fingerprint(user_agent)
+    
+    token_data = verify_token(token, "access", fingerprint, ip_address)
     if not token_data:
+        log_security_event(
+            "invalid_token",
+            {"token_type": "access"},
+            request,
+            "warning"
+        )
         raise HTTPException(
             status_code=status.HTTP_401_UNAUTHORIZED,
             detail="Invalid authentication credentials",
@@ -478,12 +650,20 @@ async def terminate_all_sessions(
         except_token=token_data.refresh_token
     )
     
+    # Log session termination
+    log_security_event(
+        "all_sessions_terminated",
+        {"user_id": current_user.id, "count": count},
+        request
+    )
+    
     return {"message": f"{count} sessions terminated successfully"}
 
 
 @router.post("/reset-password")
 async def reset_password(
     reset_request: PasswordResetRequest,
+    request: Request,
     db: Session = Depends(get_db)
 ):
     """
@@ -492,6 +672,13 @@ async def reset_password(
     # Find user by email
     user = db.query(User).filter(User.email == reset_request.email).first()
     if not user:
+        # Log attempt with non-existent email
+        log_security_event(
+            "password_reset_attempt",
+            {"email": reset_request.email, "status": "email_not_found"},
+            request,
+            "warning"
+        )
         # Don't reveal that the email doesn't exist
         return {"message": "If the email exists, a password reset link has been sent"}
     
@@ -508,12 +695,20 @@ async def reset_password(
         token=reset_token
     )
     
+    # Log successful password reset request
+    log_security_event(
+        "password_reset_requested",
+        {"user_id": user.id, "username": user.username},
+        request
+    )
+    
     return {"message": "If the email exists, a password reset link has been sent"}
 
 
 @router.post("/reset-password/confirm")
 async def reset_password_confirm(
     reset_confirm: PasswordResetConfirm,
+    request: Request,
     db: Session = Depends(get_db)
 ):
     """
@@ -526,6 +721,12 @@ async def reset_password_confirm(
     ).first()
     
     if not user:
+        log_security_event(
+            "password_reset_confirm",
+            {"status": "invalid_token"},
+            request,
+            "warning"
+        )
         raise HTTPException(
             status_code=status.HTTP_400_BAD_REQUEST,
             detail="Invalid or expired reset token"
@@ -540,5 +741,12 @@ async def reset_password_confirm(
     AuthService.terminate_all_sessions(db=db, user_id=user.id)
     
     db.commit()
+    
+    # Log successful password reset
+    log_security_event(
+        "password_reset_completed",
+        {"user_id": user.id, "username": user.username},
+        request
+    )
     
     return {"message": "Password reset successfully"}

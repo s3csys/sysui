@@ -3,10 +3,13 @@ from fastapi.middleware.cors import CORSMiddleware
 from fastapi.responses import JSONResponse
 import logging
 import time
+import socket
+import platform
 
 from app.api.v1 import api_router
 from app.core.config import settings
 from app.middleware import RateLimitMiddleware
+from app.core.security import log_security_event
 
 logging.basicConfig(level=logging.INFO)
 logger = logging.getLogger(__name__)
@@ -50,6 +53,21 @@ def create_app() -> FastAPI:
     @app.exception_handler(Exception)
     async def global_exception_handler(request: Request, exc: Exception):
         logger.error(f"Unhandled exception: {str(exc)}", exc_info=True)
+        
+        # Log security event for unhandled exceptions
+        log_security_event(
+            "unhandled_exception",
+            {
+                "path": request.url.path,
+                "method": request.method,
+                "client_ip": request.client.host if request.client else "unknown",
+                "exception_type": exc.__class__.__name__,
+                "exception_message": str(exc)
+            },
+            request,
+            level="error"
+        )
+        
         return JSONResponse(
             status_code=500,
             content={"detail": "Internal server error"},
@@ -62,6 +80,41 @@ def create_app() -> FastAPI:
     @app.get("/health")
     def health_check():
         return {"status": "ok"}
+    
+    # Add startup event handler
+    @app.on_event("startup")
+    async def startup_event():
+        hostname = socket.gethostname()
+        ip = socket.gethostbyname(hostname)
+        os_info = f"{platform.system()} {platform.release()}"
+        
+        log_security_event(
+            "application_startup",
+            {
+                "hostname": hostname,
+                "ip": ip,
+                "os": os_info,
+                "python_version": platform.python_version(),
+                "app_version": settings.SERVER_NAME
+            },
+            level="info"
+        )
+        logger.info(f"Application started on {hostname} ({ip})")
+    
+    # Add shutdown event handler
+    @app.on_event("shutdown")
+    async def shutdown_event():
+        hostname = socket.gethostname()
+        
+        log_security_event(
+            "application_shutdown",
+            {
+                "hostname": hostname,
+                "app_version": settings.SERVER_NAME
+            },
+            level="info"
+        )
+        logger.info("Application shutting down")
     
     return app
 

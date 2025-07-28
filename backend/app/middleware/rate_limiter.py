@@ -6,6 +6,7 @@ import redis
 import logging
 
 from app.core.config import settings
+from app.core.security import log_security_violation
 
 logging.basicConfig(level=logging.INFO)
 logger = logging.getLogger(__name__)
@@ -127,7 +128,34 @@ class RateLimitMiddleware(BaseHTTPMiddleware):
         """
         super().__init__(app)
         self.limiter = RateLimiter(redis_client)
-        self.rate_limit_per_minute = settings.RATE_LIMIT_PER_MINUTE
+        
+        # Define rate limits for different endpoints (requests per minute)
+        self.endpoint_limits = {
+            "/api/v1/auth/login": 10,  # More strict for login attempts
+            "/api/v1/auth/register": 5,  # Very strict for registration
+            "/api/v1/auth/2fa/verify": 15,  # Moderate for 2FA verification
+            "/api/v1/auth/refresh": 20,  # Token refresh
+            "/api/v1/auth/reset-password": 5,  # Password reset requests
+            "/api/v1/auth/reset-password/confirm": 5,  # Password reset confirmation
+            "/api/v1/auth/verify-email": 10,  # Email verification
+            "default": settings.RATE_LIMIT_PER_MINUTE  # Default limit
+        }
+        
+        # Progressive lockout periods (in seconds)
+        # Each subsequent violation increases the lockout period
+        self.lockout_periods = [
+            60,     # 1 minute for first violation
+            300,    # 5 minutes for second violation
+            900,    # 15 minutes for third violation
+            3600,   # 1 hour for fourth violation
+            86400   # 24 hours for fifth and subsequent violations
+        ]
+        
+        # Notification thresholds for suspicious activity
+        self.notification_thresholds = {
+            "violations": 3,  # Number of violations before notification
+            "lockout_period": 900  # Notify on lockouts >= 15 minutes
+        }
     
     async def dispatch(self, request: Request, call_next: Callable) -> Response:
         """
@@ -148,11 +176,115 @@ class RateLimitMiddleware(BaseHTTPMiddleware):
         client_ip = request.client.host if request.client else "unknown"
         
         # Create rate limit key
-        key = f"rate_limit:{client_ip}:{request.url.path}"
+        path_key = f"rate_limit:{client_ip}:{request.url.path}"
+        
+        # Create lockout key
+        lockout_key = f"lockout:{client_ip}"
+        
+        # Check if client is in lockout period
+        if self.limiter.redis:
+            try:
+                lockout_ttl = self.limiter.redis.ttl(lockout_key)
+                if lockout_ttl > 0:
+                    logger.warning(f"Client {client_ip} is in lockout period for {lockout_ttl} more seconds")
+                    
+                    # Log security violation
+                    log_security_violation(
+                        "lockout_period_active",
+                        {
+                            "ip": client_ip,
+                            "path": request.url.path,
+                            "method": request.method,
+                            "remaining_seconds": lockout_ttl
+                        },
+                        request
+                    )
+                    
+                    raise HTTPException(
+                        status_code=status.HTTP_429_TOO_MANY_REQUESTS,
+                        detail=f"Too many requests. Please try again in {lockout_ttl} seconds."
+                    )
+            except redis.RedisError:
+                # If Redis fails, continue without lockout check
+                pass
+        
+        # Get rate limit for this endpoint
+        rate_limit = self.endpoint_limits.get(request.url.path, self.endpoint_limits["default"])
         
         # Check if rate limited
-        if self.limiter.is_rate_limited(key, self.rate_limit_per_minute, 60):
+        if self.limiter.is_rate_limited(path_key, rate_limit, 60):
             logger.warning(f"Rate limit exceeded for {client_ip} on {request.url.path}")
+            
+            # Log rate limit exceeded
+            log_security_violation(
+                "rate_limit_exceeded",
+                {
+                    "ip": client_ip,
+                    "path": request.url.path,
+                    "method": request.method,
+                    "limit": rate_limit
+                },
+                request
+            )
+            
+            # Apply progressive lockout
+            if self.limiter.redis:
+                try:
+                    # Get violation count
+                    violation_key = f"violations:{client_ip}"
+                    violations = self.limiter.redis.incr(violation_key)
+                    self.limiter.redis.expire(violation_key, 86400)  # Expire after 24 hours
+                    
+                    # Determine lockout period based on violation count
+                    lockout_index = min(violations - 1, len(self.lockout_periods) - 1)
+                    lockout_period = self.lockout_periods[lockout_index]
+                    
+                    # Set lockout
+                    self.limiter.redis.set(lockout_key, 1, ex=lockout_period)
+                    
+                    logger.warning(f"Client {client_ip} locked out for {lockout_period} seconds after {violations} violations")
+                    
+                    # Log lockout
+                    log_security_violation(
+                        "progressive_lockout_applied",
+                        {
+                            "ip": client_ip,
+                            "path": request.url.path,
+                            "method": request.method,
+                            "violations": violations,
+                            "lockout_period": lockout_period
+                        },
+                        request
+                    )
+                    
+                    # Check if notification threshold is reached
+                    if violations >= self.notification_thresholds["violations"] or \
+                       lockout_period >= self.notification_thresholds["lockout_period"]:
+                        # Log suspicious activity for notification
+                        log_security_violation(
+                            "suspicious_login_activity",
+                            {
+                                "ip": client_ip,
+                                "path": request.url.path,
+                                "method": request.method,
+                                "violations": violations,
+                                "lockout_period": lockout_period,
+                                "requires_notification": True
+                            },
+                            request
+                        )
+                        
+                        # TODO: Implement notification system (email, SMS, etc.)
+                        # This would typically call a notification service
+                    
+                    raise HTTPException(
+                        status_code=status.HTTP_429_TOO_MANY_REQUESTS,
+                        detail=f"Too many requests. Please try again in {lockout_period} seconds."
+                    )
+                except redis.RedisError:
+                    # If Redis fails, use standard rate limit response
+                    pass
+            
             raise HTTPException(
                 status_code=status.HTTP_429_TOO_MANY_REQUESTS,
                 detail="Rate limit exceeded. Please try again later."

@@ -129,9 +129,17 @@ class AuthService:
         Returns:
             Tuple[str, str]: A tuple containing the access token and refresh token
         """
-        # Create tokens
-        access_token = create_access_token(subject=user.id)
-        refresh_token = create_refresh_token(subject=user.id)
+        # Generate fingerprint from user agent if available
+        fingerprint = None
+        if user_agent:
+            from app.core.security.fingerprint import generate_fingerprint
+            # Create a fingerprint based on user agent
+            # This helps prevent token reuse across different devices/browsers
+            fingerprint = generate_fingerprint(user_agent)
+        
+        # Create tokens with fingerprint and IP address
+        access_token = create_access_token(subject=user.id, fingerprint=fingerprint, ip_address=ip_address)
+        refresh_token = create_refresh_token(subject=user.id, fingerprint=fingerprint, ip_address=ip_address)
         
         # Store refresh token in database if session is provided
         if db:
