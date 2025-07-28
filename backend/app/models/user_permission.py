@@ -12,9 +12,9 @@ if TYPE_CHECKING:
 
 # Association table for many-to-many relationship between users and permissions
 user_permission_association = Table(
-    'user_permission',
+    'user_permission_association',
     Base.metadata,
-    Column('user_id', Integer, ForeignKey('user.id', ondelete="CASCADE"), primary_key=True),
+    Column('user_id', Integer, ForeignKey('users.id', ondelete="CASCADE"), primary_key=True),
     Column('permission', String(50), primary_key=True)
 )
 
