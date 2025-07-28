@@ -1,12 +1,12 @@
 from sqlalchemy import Column, Integer, String, ForeignKey, Table
 from sqlalchemy.orm import relationship
-from typing import List, Optional, Set, TYPE_CHECKING
+from typing import List, Optional, Set, TYPE_CHECKING, Any
 
 from app.models.base import Base
+from app.models.permission import Permission
 
 # Avoid circular imports
 if TYPE_CHECKING:
-    from app.models.permission import Permission
     from app.models.user import User
 
 
@@ -20,39 +20,38 @@ user_permission_association = Table(
 
 
 class UserPermission:
-    """Helper class for managing user permissions"""
+    """Helper class for user permission operations"""
     
     @staticmethod
-    def get_user_permissions(user) -> Set[str]:
-        """Get all permissions for a user, including role-based and custom permissions.
-        
-        Args:
-            user: The user object
-            
-        Returns:
-            Set[str]: A set of all permission names for the user
-        """
-        from app.models.permission import Permission
+    def get_user_permissions(user: "User") -> Set[str]:
+        """Get all permissions for a user (role-based + custom)"""
+        # Import here to avoid circular imports
+        from app.models.user import UserRole
         
         # Get role-based permissions
-        role_permissions = Permission.get_role_permissions(user.role.value)
+        role_permissions = UserRole.get_role_permissions(user.role)
         
-        # Get custom permissions
-        custom_permissions = {perm for perm in user.custom_permissions}
-        
-        # Combine and return all permissions
-        return role_permissions.union(custom_permissions)
+        # Combine with custom permissions
+        all_permissions = set(role_permissions)
+        if user.custom_permissions:
+            all_permissions.update(user.custom_permissions)
+            
+        return all_permissions
     
     @staticmethod
-    def has_permission(user, permission: str) -> bool:
-        """Check if a user has a specific permission.
+    def has_permission(user: "User", permission: str) -> bool:
+        """Check if a user has a specific permission"""
+        # Import here to avoid circular imports
+        from app.models.user import UserRole
         
-        Args:
-            user: The user object
-            permission: The permission to check
-            
-        Returns:
-            bool: True if the user has the permission, False otherwise
-        """
-        user_permissions = UserPermission.get_user_permissions(user)
-        return permission in user_permissions
+        # First check if the permission is granted by the user's role
+        if user.role == UserRole.ADMIN:
+            return True  # Admin has all permissions
+        
+        # Check if the permission is in the role's permissions
+        role_permissions = UserRole.get_role_permissions(user.role)
+        if permission in role_permissions:
+            return True
+        
+        # Finally check custom permissions
+        return permission in user.custom_permissions if user.custom_permissions else False

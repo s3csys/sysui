@@ -39,6 +39,23 @@ class UserRole(str, enum.Enum):
         }
         
         return role_hierarchy.get(user_role, 0) >= role_hierarchy.get(required_role, 0)
+        
+    @classmethod
+    def get_role_permissions(cls, role: "UserRole") -> Set[str]:
+        """Get permissions for a specific role"""
+        from app.models.permission import Permission
+        
+        if role == cls.ADMIN:
+            # Admin has all permissions
+            return set(Permission.get_all_permissions())
+        elif role == cls.EDITOR:
+            # Editor has editor and viewer permissions
+            return set(Permission.get_role_permissions("editor"))
+        elif role == cls.VIEWER:
+            # Viewer has only viewer permissions
+            return set(Permission.get_role_permissions("viewer"))
+        else:
+            return set()
 
 
 class User(Base):
@@ -103,8 +120,17 @@ class User(Base):
         Returns:
             bool: True if the user has the permission, False otherwise
         """
-        from app.models.user_permission import UserPermission
-        return UserPermission.has_permission(self, permission)
+        # First check if the permission is granted by the user's role
+        if self.role == UserRole.ADMIN:
+            return True  # Admin has all permissions
+        
+        # Check if the permission is in the role's permissions
+        role_permissions = UserRole.get_role_permissions(self.role)
+        if permission in role_permissions:
+            return True
+        
+        # Finally check custom permissions
+        return permission in self.custom_permissions if self.custom_permissions else False
     
     def get_permissions(self) -> Set[str]:
         """Get all permissions for the user.
@@ -112,8 +138,15 @@ class User(Base):
         Returns:
             Set[str]: A set of all permission names for the user
         """
-        from app.models.user_permission import UserPermission
-        return UserPermission.get_user_permissions(self)
+        # Get role-based permissions
+        role_permissions = UserRole.get_role_permissions(self.role)
+        
+        # Combine with custom permissions
+        all_permissions = set(role_permissions)
+        if self.custom_permissions:
+            all_permissions.update(self.custom_permissions)
+            
+        return all_permissions
     
     def __repr__(self) -> str:
         return f"<User {self.username}>"
