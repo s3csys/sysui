@@ -18,12 +18,19 @@ depends_on = None
 
 def upgrade():
     # Create permissions table
-    op.create_table(
-        'permissions',
-        sa.Column('name', sa.String(length=50), nullable=False),
-        sa.PrimaryKeyConstraint('name')
-    )
+    # op.create_table(
+    #     'permissions',
+    #     sa.Column('name', sa.String(length=50), nullable=False),
+    #     sa.PrimaryKeyConstraint('name')
+    # )
     
+    op.execute("""
+        CREATE TABLE IF NOT EXISTS permissions (
+            name VARCHAR(50) NOT NULL,
+            PRIMARY KEY (name)
+        )
+    """)
+
     # Rename permission column to permission_name and add foreign key constraint
     with op.batch_alter_table('user_permission_association') as batch_op:
         # First, add the new column
