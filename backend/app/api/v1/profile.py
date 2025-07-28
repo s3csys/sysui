@@ -34,10 +34,10 @@ class PasswordUpdate(BaseModel):
 
 @router.put("/update", response_model=UserResponse)
 async def update_profile(
+    request: Request,
     profile_data: ProfileUpdate,
     current_user: User = Depends(get_current_active_verified_user),
-    db: Session = Depends(get_db),
-    request: Request = None
+    db: Session = Depends(get_db)
 ):
     """
     Update user profile information.
@@ -82,10 +82,10 @@ async def update_profile(
 
 @router.put("/update-password", status_code=status.HTTP_200_OK)
 async def update_password(
+    request: Request,
     password_data: PasswordUpdate,
     current_user: User = Depends(get_current_active_verified_user),
-    db: Session = Depends(get_db),
-    request: Request = None
+    db: Session = Depends(get_db)
 ):
     """
     Update user password.
