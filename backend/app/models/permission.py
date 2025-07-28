@@ -15,8 +15,8 @@ class Permission(str, Enum):
     # Resource management permissions
     VIEW_RESOURCES = "view_resources"
     CREATE_RESOURCE = "create_resource"
-    EDIT_RESOURCE = "edit_resource"
-    DELETE_RESOURCE = "delete_resource"
+    EDIT_RESOURCES = "edit_resources"  # Fixed to match documentation
+    DELETE_RESOURCES = "delete_resources"  # Fixed to match documentation
     
     # System management permissions
     VIEW_SYSTEM_SETTINGS = "view_system_settings"
@@ -38,13 +38,13 @@ class Permission(str, Enum):
         role_permissions = {
             "admin": {
                 cls.VIEW_USERS, cls.CREATE_USER, cls.EDIT_USER, cls.DELETE_USER, cls.CHANGE_USER_ROLE,
-                cls.VIEW_RESOURCES, cls.CREATE_RESOURCE, cls.EDIT_RESOURCE, cls.DELETE_RESOURCE,
+                cls.VIEW_RESOURCES, cls.CREATE_RESOURCE, cls.EDIT_RESOURCES, cls.DELETE_RESOURCES,
                 cls.VIEW_SYSTEM_SETTINGS, cls.EDIT_SYSTEM_SETTINGS,
                 cls.VIEW_AUDIT_LOGS
             },
             "editor": {
                 cls.VIEW_USERS,
-                cls.VIEW_RESOURCES, cls.CREATE_RESOURCE, cls.EDIT_RESOURCE,
+                cls.VIEW_RESOURCES, cls.CREATE_RESOURCE, cls.EDIT_RESOURCES,
                 cls.VIEW_SYSTEM_SETTINGS
             },
             "viewer": {

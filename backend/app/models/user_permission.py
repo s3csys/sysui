@@ -1,8 +1,13 @@
 from sqlalchemy import Column, Integer, String, ForeignKey, Table
 from sqlalchemy.orm import relationship
-from typing import List, Optional, Set
+from typing import List, Optional, Set, TYPE_CHECKING
 
 from app.models.base import Base
+
+# Avoid circular imports
+if TYPE_CHECKING:
+    from app.models.permission import Permission
+    from app.models.user import User
 
 
 # Association table for many-to-many relationship between users and permissions

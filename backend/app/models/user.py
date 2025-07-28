@@ -1,11 +1,17 @@
 from sqlalchemy import Boolean, Column, String, Enum, Text, ForeignKey, Integer, DateTime
 from sqlalchemy.orm import relationship, Mapped, mapped_column
 import enum
-from typing import List, Optional, Set, ClassVar
+from typing import List, Optional, Set, ClassVar, TYPE_CHECKING, ForwardRef
 from datetime import datetime
 
 from app.models.base import Base
+
+# Import the association table directly to avoid circular imports
 from app.models.user_permission import user_permission_association
+
+# Use TYPE_CHECKING for type hints to avoid circular imports
+if TYPE_CHECKING:
+    from app.models.user_permission import UserPermission
 
 
 class UserRole(str, enum.Enum):
@@ -59,16 +65,34 @@ class User(Base):
     custom_permissions: Mapped[Set[str]] = relationship(
         secondary=user_permission_association,
         collection_class=set,
-        lazy="joined"
+        lazy="joined",
+        cascade="save-update, merge, refresh-expire, expunge",
+        uselist=True
     )
     
     # 2FA fields
     is_2fa_enabled: Mapped[bool] = mapped_column(Boolean(), default=False, nullable=False)
     
     # Relationships
-    totp_secret: Mapped[Optional["TOTPSecret"]] = relationship("TOTPSecret", back_populates="user", uselist=False, cascade="all, delete-orphan")
-    backup_codes: Mapped[List["BackupCode"]] = relationship("BackupCode", back_populates="user", cascade="all, delete-orphan")
-    sessions: Mapped[List["Session"]] = relationship("Session", back_populates="user", cascade="all, delete-orphan")
+    totp_secret: Mapped[Optional["TOTPSecret"]] = relationship(
+        "TOTPSecret", 
+        back_populates="user", 
+        uselist=False, 
+        cascade="all, delete-orphan",
+        lazy="joined"
+    )
+    backup_codes: Mapped[List["BackupCode"]] = relationship(
+        "BackupCode", 
+        back_populates="user", 
+        cascade="all, delete-orphan",
+        lazy="selectin"
+    )
+    sessions: Mapped[List["Session"]] = relationship(
+        "Session", 
+        back_populates="user", 
+        cascade="all, delete-orphan",
+        lazy="selectin"
+    )
     
     def has_permission(self, permission: str) -> bool:
         """Check if the user has a specific permission.
@@ -105,7 +129,7 @@ class TOTPSecret(Base):
     is_verified: Mapped[bool] = mapped_column(Boolean(), default=False, nullable=False)
     
     # Relationships
-    user: Mapped["User"] = relationship("User", back_populates="totp_secret")
+    user: Mapped["User"] = relationship("User", back_populates="totp_secret", foreign_keys=[user_id])
     
     def __repr__(self) -> str:
         return f"<TOTPSecret user_id={self.user_id}>"
@@ -116,12 +140,12 @@ class BackupCode(Base):
     
     __allow_unmapped__ = True  # Allow legacy annotations to be used alongside Mapped
     
-    user_id: Mapped[int] = mapped_column(Integer, ForeignKey("user.id", ondelete="CASCADE"), nullable=False)
+    user_id: Mapped[int] = mapped_column(Integer, ForeignKey("user.id", ondelete="CASCADE"), nullable=False, index=True)
     hashed_code: Mapped[str] = mapped_column(String(100), nullable=False)
     is_used: Mapped[bool] = mapped_column(Boolean(), default=False, nullable=False)
     
     # Relationships
-    user: Mapped["User"] = relationship("User", back_populates="backup_codes")
+    user: Mapped["User"] = relationship("User", back_populates="backup_codes", foreign_keys=[user_id])
     
     def __repr__(self) -> str:
         return f"<BackupCode user_id={self.user_id} is_used={self.is_used}>"
@@ -132,15 +156,15 @@ class Session(Base):
     
     __allow_unmapped__ = True  # Allow legacy annotations to be used alongside Mapped
     
-    user_id: Mapped[int] = mapped_column(Integer, ForeignKey("user.id", ondelete="CASCADE"), nullable=False)
-    refresh_token: Mapped[str] = mapped_column(String(255), nullable=False, unique=True)
+    user_id: Mapped[int] = mapped_column(Integer, ForeignKey("user.id", ondelete="CASCADE"), nullable=False, index=True)
+    refresh_token: Mapped[str] = mapped_column(String(255), nullable=False, unique=True, index=True)
     user_agent: Mapped[Optional[str]] = mapped_column(Text, nullable=True)
-    ip_address: Mapped[Optional[str]] = mapped_column(String(50), nullable=True)
-    expires_at: Mapped[datetime] = mapped_column(DateTime, nullable=False)
-    is_active: Mapped[bool] = mapped_column(Boolean(), default=True, nullable=False)
+    ip_address: Mapped[Optional[str]] = mapped_column(String(50), nullable=True, index=True)
+    expires_at: Mapped[datetime] = mapped_column(DateTime, nullable=False, index=True)
+    is_active: Mapped[bool] = mapped_column(Boolean(), default=True, nullable=False, index=True)
     
     # Relationships
-    user: Mapped["User"] = relationship("User", back_populates="sessions")
+    user: Mapped["User"] = relationship("User", back_populates="sessions", foreign_keys=[user_id])
     
     def __repr__(self) -> str:
         return f"<Session user_id={self.user_id} is_active={self.is_active}>"
