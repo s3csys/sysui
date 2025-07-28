@@ -35,7 +35,8 @@ def upgrade():
     # Continue with the rest of the migration
     with op.batch_alter_table('user_permission_association') as batch_op:
         # Make permission_name not nullable
-        batch_op.alter_column('permission_name', nullable=False)
+        # batch_op.alter_column('permission_name', nullable=False)
+        batch_op.alter_column('permission_name', existing_type=sa.String(length=50), nullable=False)
         
         # Drop the old column
         batch_op.drop_column('permission')
@@ -72,7 +73,8 @@ def downgrade():
     # Continue with the rest of the downgrade
     with op.batch_alter_table('user_permission_association') as batch_op:
         # Make permission not nullable
-        batch_op.alter_column('permission', nullable=False)
+        # batch_op.alter_column('permission', nullable=False)
+        batch_op.alter_column('permission', existing_type=sa.String(length=50), nullable=False)
         
         # Drop the new column
         batch_op.drop_column('permission_name')
