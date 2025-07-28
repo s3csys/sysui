@@ -1,5 +1,5 @@
 from fastapi import Depends, HTTPException, status, Request
-from typing import Optional, List, Union
+from typing import List, Union
 
 from app.models.user import User, UserRole
 from app.models.permission import Permission
