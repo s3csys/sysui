@@ -11,7 +11,7 @@ import sqlalchemy as sa
 
 # revision identifiers, used by Alembic.
 revision = 'add_user_permissions'
-down_revision = None  # Update this to the latest migration in your system
+down_revision = '001_create_auth_tables'  # Updated to point to the auth tables migration
 branch_labels = None
 depends_on = None
 
