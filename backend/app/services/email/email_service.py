@@ -23,8 +23,8 @@ class EmailService:
                 MAIL_PORT=settings.SMTP_PORT,
                 MAIL_SERVER=settings.SMTP_HOST,
                 MAIL_FROM_NAME=settings.EMAILS_FROM_NAME,
-                MAIL_TLS=settings.SMTP_TLS,
-                MAIL_SSL=False,
+                MAIL_STARTTLS=settings.SMTP_TLS,
+                MAIL_SSL_TLS=False,
                 USE_CREDENTIALS=True,
                 TEMPLATE_FOLDER=Path(settings.EMAIL_TEMPLATES_DIR)
             )
