@@ -78,7 +78,16 @@ export const authService = {
   
   // Login user
   async login(email: string, password: string) {
-    const response = await api.post('/auth/login', { email, password })
+    // Using form data format as required by the backend
+    const formData = new FormData()
+    formData.append('username', email)
+    formData.append('password', password)
+    
+    const response = await axios.post(`${API_URL}/auth/login`, formData, {
+      headers: {
+        'Content-Type': 'application/x-www-form-urlencoded'
+      }
+    })
     return response.data
   },
   

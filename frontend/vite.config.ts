@@ -27,10 +27,10 @@ export default defineConfig(({ mode }) => {
     allowedHosts: allowedHosts,
     proxy: {
       '/api': {
-        target: env.VITE_API_URL || 'http://0.0.0.0:8000',
+        target: env.VITE_API_URL || 'http://localhost:8000',
         changeOrigin: true,
         secure: false,
-        rewrite: (path) => path,
+        rewrite: (path) => path.replace(/^\/api/, '/api/v1'),
       },
     },
   },
