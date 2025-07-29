@@ -21,9 +21,9 @@ def upgrade():
     op.create_table(
         'user_permission_association',
         sa.Column('user_id', sa.Integer(), nullable=False),
-        sa.Column('permission', sa.String(length=50), nullable=False),
+        sa.Column('permission_name', sa.String(length=50), nullable=False),
         sa.ForeignKeyConstraint(['user_id'], ['user.id'], ondelete='CASCADE'),
-        sa.PrimaryKeyConstraint('user_id', 'permission')
+        sa.PrimaryKeyConstraint('user_id', 'permission_name')
     )
     
     # Create index for faster lookups

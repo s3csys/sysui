@@ -33,35 +33,10 @@ def upgrade():
     inspector = inspect(conn)
     columns = [column['name'] for column in inspector.get_columns('user_permission_association')]
     
-    # Check if permission column exists
-    if 'permission' in columns and 'permission_name' not in columns:
-        # Rename permission column to permission_name and add foreign key constraint
-        with op.batch_alter_table('user_permission_association') as batch_op:
-            # First, add the new column if it doesn't exist
-            batch_op.add_column(sa.Column('permission_name', sa.String(length=50), nullable=True))
-        
-        # Now that the column exists, update it with data from the permission column
-        op.execute("UPDATE user_permission_association SET permission_name = permission")
-        
-        # Continue with the rest of the migration
-        with op.batch_alter_table('user_permission_association') as batch_op:
-            # Make permission_name not nullable
-            batch_op.alter_column('permission_name', existing_type=sa.String(length=50), nullable=False)
-            
-            # Drop the old column
-            batch_op.drop_column('permission')
-    elif 'permission' in columns and 'permission_name' in columns:
-        # Both columns exist, just make sure permission_name has the data and drop permission
-        op.execute("UPDATE user_permission_association SET permission_name = permission WHERE permission_name IS NULL")
-        
-        with op.batch_alter_table('user_permission_association') as batch_op:
-            # Make permission_name not nullable
-            batch_op.alter_column('permission_name', existing_type=sa.String(length=50), nullable=False)
-            
-            # Drop the old column
-            batch_op.drop_column('permission')
-    elif 'permission_name' not in columns:
-        # If permission doesn't exist but permission_name also doesn't exist, create permission_name
+    # We're now creating the table with permission_name directly, so we don't need to rename columns
+    # Just make sure permission_name exists
+    if 'permission_name' not in columns:
+        # If permission_name doesn't exist, create it
         with op.batch_alter_table('user_permission_association') as batch_op:
             batch_op.add_column(sa.Column('permission_name', sa.String(length=50), nullable=False))
     
