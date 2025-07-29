@@ -34,7 +34,7 @@ def create_admin_user():
         # Create admin user
         admin_username = os.getenv("ADMIN_USERNAME", "admin")
         admin_email = os.getenv("ADMIN_EMAIL", "admin@example.com")
-        admin_password = os.getenv("ADMIN_PASSWORD", "Admin123!")
+        admin_password = os.getenv("ADMIN_PASSWORD", "Admin123!")  # Default password
         
         try:
             # Create user
@@ -53,10 +53,21 @@ def create_admin_user():
                 
                 # Verify the admin user automatically
                 if user.verification_token:
-                    AuthService.verify_email(db=db, token=user.verification_token)
-                    print(f"Admin user created and verified: {admin_username}")
+                    # Ensure verification works
+                    verification_result = AuthService.verify_email(db=db, token=user.verification_token)
+                    if verification_result:
+                        print(f"Admin user created and verified: {admin_username}")
+                    else:
+                        # Force verification if the normal method fails
+                        user.is_verified = True
+                        user.verification_token = None
+                        db.commit()
+                        print(f"Admin user created and force-verified: {admin_username}")
                 else:
-                    print("Failed to verify admin user.")
+                    # If no verification token, ensure user is verified
+                    user.is_verified = True
+                    db.commit()
+                    print(f"Admin user created and verified: {admin_username}")
             else:
                 print("Failed to create admin user.")
         except Exception as e:
