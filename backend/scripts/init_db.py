@@ -37,23 +37,30 @@ def create_admin_user():
         admin_password = os.getenv("ADMIN_PASSWORD", "Admin123!")
         
         try:
-            # Create user with admin role
+            # Create user
             user = AuthService.create_user(
                 db=db,
                 username=admin_username,
                 email=admin_email,
                 password=admin_password,
-                full_name="System Administrator",
-                role=UserRole.ADMIN
+                full_name="System Administrator"
             )
             
-            # Verify the admin user automatically
-            if user and user.verification_token:
-                AuthService.verify_email(db=db, token=user.verification_token)
-                print(f"Admin user created and verified: {admin_username}")
+            # Set admin role
+            if user:
+                user.role = UserRole.ADMIN
+                db.commit()
+                
+                # Verify the admin user automatically
+                if user.verification_token:
+                    AuthService.verify_email(db=db, token=user.verification_token)
+                    print(f"Admin user created and verified: {admin_username}")
+                else:
+                    print("Failed to verify admin user.")
             else:
                 print("Failed to create admin user.")
         except Exception as e:
+            db.rollback()
             print(f"Error creating admin user: {e}")
     finally:
         db.close()
