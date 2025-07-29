@@ -62,8 +62,45 @@ def create_admin_user():
 def init_db():
     """Initialize the database with required data."""
     print("Initializing database...")
+    
+    # Create all tables in the database
+    from app.models.base import Base
+    from app.db.session import engine
+    Base.metadata.create_all(bind=engine)
+    print("Database tables created.")
+    
+    # Initialize permissions
+    init_permissions()
+    
+    # Create default admin user
     create_admin_user()
+    
     print("Database initialization completed.")
+
+
+def init_permissions():
+    """Initialize the permissions table with all available permissions."""
+    from app.models.permission import Permission, PermissionEnum
+    
+    db = next(get_db())
+    try:
+        # Check if permissions already exist
+        existing_permissions = db.query(Permission).count()
+        if existing_permissions > 0:
+            print(f"Permissions already initialized ({existing_permissions} found).")
+            return
+            
+        # Create all permissions from the PermissionEnum
+        for permission in PermissionEnum:
+            db.add(Permission(name=permission.value))
+        
+        db.commit()
+        print(f"Initialized {len(PermissionEnum)} permissions.")
+    except Exception as e:
+        db.rollback()
+        print(f"Error initializing permissions: {e}")
+    finally:
+        db.close()
 
 
 if __name__ == "__main__":
