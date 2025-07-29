@@ -22,7 +22,7 @@ def upgrade():
         'user_permission_association',
         sa.Column('user_id', sa.Integer(), nullable=False),
         sa.Column('permission', sa.String(length=50), nullable=False),
-        sa.ForeignKeyConstraint(['user_id'], ['users.id'], ondelete='CASCADE'),
+        sa.ForeignKeyConstraint(['user_id'], ['user.id'], ondelete='CASCADE'),
         sa.PrimaryKeyConstraint('user_id', 'permission')
     )
     

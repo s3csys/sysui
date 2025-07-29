@@ -76,7 +76,8 @@ def upgrade():
                 'fk_user_permission_permission_name',
                 'permissions',
                 ['permission_name'],
-                ['name']
+                ['name'],
+                ondelete='CASCADE'
             )
     
     # Insert existing permissions from the enum into the permissions table
