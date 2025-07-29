@@ -43,7 +43,7 @@ api.interceptors.response.use(
         }
         
         // Try to refresh the token
-        const response = await axios.post(`${API_URL}/auth/refresh-token`, {
+        const response = await axios.post(`${API_URL}/v1/auth/refresh-token`, {
           refreshToken,
         })
         
@@ -72,7 +72,7 @@ api.interceptors.response.use(
 export const authService = {
   // Register a new user
   async register(userData: { email: string; username: string; password: string }) {
-    const response = await api.post('/auth/register', userData)
+    const response = await api.post('/v1/auth/register', userData)
     return response.data
   },
   
@@ -83,7 +83,8 @@ export const authService = {
     formData.append('username', email)
     formData.append('password', password)
     
-    const response = await axios.post(`${API_URL}/auth/login`, formData, {
+    // Use the correct API endpoint with v1 prefix
+    const response = await axios.post(`${API_URL}/v1/auth/login`, formData, {
       headers: {
         'Content-Type': 'application/x-www-form-urlencoded'
       }
@@ -93,19 +94,19 @@ export const authService = {
   
   // Logout user
   async logout(refreshToken: string) {
-    const response = await api.post('/auth/logout', { refreshToken })
+    const response = await api.post('/v1/auth/logout', { refreshToken })
     return response.data
   },
   
   // Get current user info
   async getCurrentUser(): Promise<User> {
-    const response = await api.get('/auth/me')
+    const response = await api.get('/v1/auth/me')
     return response.data
   },
   
   // Update user profile
   async updateProfile(profileData: { name: string; email: string }): Promise<User> {
-    const response = await api.put('/profile/update', {
+    const response = await api.put('/v1/profile/update', {
       email: profileData.email,
       full_name: profileData.name
     })
@@ -114,7 +115,7 @@ export const authService = {
   
   // Update user password
   async updatePassword(currentPassword: string, newPassword: string): Promise<any> {
-    const response = await api.put('/profile/update-password', {
+    const response = await api.put('/v1/profile/update-password', {
       current_password: currentPassword,
       new_password: newPassword
     })
@@ -123,61 +124,61 @@ export const authService = {
   
   // Refresh token
   async refreshToken(refreshToken: string) {
-    const response = await api.post('/auth/refresh-token', { refreshToken })
+    const response = await api.post('/v1/auth/refresh-token', { refreshToken })
     return response.data
   },
   
   // Setup two-factor authentication
   async setupTwoFactor() {
-    const response = await api.post('/auth/2fa/setup')
+    const response = await api.post('/v1/auth/2fa/setup')
     return response.data
   },
   
   // Verify two-factor setup
   async verifyTwoFactor(token: string, remember: boolean = false) {
-    const response = await api.post('/auth/2fa/verify', { token, remember })
+    const response = await api.post('/v1/auth/2fa/verify', { token, remember })
     return response.data
   },
   
   // Verify two-factor during login
   async verifyTwoFactorLogin(email: string, token: string) {
-    const response = await api.post('/auth/2fa/login', { email, token })
+    const response = await api.post('/v1/auth/2fa/login', { email, token })
     return response.data
   },
   
   // Request password reset
   async forgotPassword(email: string) {
-    const response = await api.post('/auth/forgot-password', { email })
+    const response = await api.post('/v1/auth/forgot-password', { email })
     return response.data
   },
   
   // Reset password with token
   async resetPassword(token: string, password: string) {
-    const response = await api.post('/auth/reset-password', { token, password })
+    const response = await api.post('/v1/auth/reset-password', { token, password })
     return response.data
   },
   
   // Verify email with token
   async verifyEmail(token: string) {
-    const response = await api.post('/auth/verify-email', { token })
+    const response = await api.post('/v1/auth/verify-email', { token })
     return response.data
   },
   
   // Get user sessions
   async getSessions() {
-    const response = await api.get('/auth/sessions')
+    const response = await api.get('/v1/auth/sessions')
     return response.data
   },
   
   // Revoke a specific session
   async revokeSession(sessionId: string) {
-    const response = await api.delete(`/auth/sessions/${sessionId}`)
+    const response = await api.delete(`/v1/auth/sessions/${sessionId}`)
     return response.data
   },
   
   // Revoke all sessions except current
   async revokeAllSessions() {
-    const response = await api.delete('/auth/sessions')
+    const response = await api.delete('/v1/auth/sessions')
     return response.data
   },
 }
