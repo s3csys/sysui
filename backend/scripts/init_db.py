@@ -26,7 +26,7 @@ def create_admin_user():
     db = next(get_db())
     try:
         # Check if admin user already exists
-        admin = db.query(User).filter(User.role == UserRole.ADMIN).first()
+        admin = db.query(User).filter(User.role == UserRole.ADMIN.value).first()
         if admin:
             print("Admin user already exists.")
             return
