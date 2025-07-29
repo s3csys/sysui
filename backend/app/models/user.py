@@ -62,6 +62,7 @@ class UserRole(str, enum.Enum):
 class User(Base):
     """User model for authentication and authorization"""
     
+    __tablename__ = "user"
     __allow_unmapped__ = True  # Allow legacy annotations to be used alongside Mapped
     
     # Basic user information
@@ -176,6 +177,7 @@ class User(Base):
 class TOTPSecret(Base):
     """TOTP secret for 2FA"""
     
+    __tablename__ = "totp_secret"
     __allow_unmapped__ = True  # Allow legacy annotations to be used alongside Mapped
     
     user_id: Mapped[int] = mapped_column(Integer, ForeignKey("user.id", ondelete="CASCADE"), nullable=False, unique=True)
@@ -192,6 +194,7 @@ class TOTPSecret(Base):
 class BackupCode(Base):
     """Backup codes for 2FA recovery"""
     
+    __tablename__ = "backup_code"
     __allow_unmapped__ = True  # Allow legacy annotations to be used alongside Mapped
     
     user_id: Mapped[int] = mapped_column(Integer, ForeignKey("user.id", ondelete="CASCADE"), nullable=False, index=True)
@@ -208,6 +211,7 @@ class BackupCode(Base):
 class Session(Base):
     """User session for tracking active logins"""
     
+    __tablename__ = "session"
     __allow_unmapped__ = True  # Allow legacy annotations to be used alongside Mapped
     
     user_id: Mapped[int] = mapped_column(Integer, ForeignKey("user.id", ondelete="CASCADE"), nullable=False, index=True)
