@@ -17,7 +17,7 @@ sys.path.insert(0, str(Path(__file__).parent.parent))
 
 from app.core.config import settings
 from app.db.session import get_db
-from app.models.user import User
+from app.models.user import User, UserRole
 from app.services.auth.auth_service import AuthService
 
 
@@ -26,7 +26,7 @@ def create_admin_user():
     db = next(get_db())
     try:
         # Check if admin user already exists
-        admin = db.query(User).filter(User.role == "admin").first()
+        admin = db.query(User).filter(User.role == UserRole.ADMIN).first()
         if admin:
             print("Admin user already exists.")
             return
@@ -44,7 +44,7 @@ def create_admin_user():
                 email=admin_email,
                 password=admin_password,
                 full_name="System Administrator",
-                role="admin"
+                role=UserRole.ADMIN
             )
             
             # Verify the admin user automatically
