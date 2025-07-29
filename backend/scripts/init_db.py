@@ -21,11 +21,12 @@ from app.models.user import User
 from app.services.auth.auth_service import AuthService
 
 
-async def create_admin_user():
+def create_admin_user():
     """Create a default admin user if no admin exists."""
-    async for db in get_db():
+    db = next(get_db())
+    try:
         # Check if admin user already exists
-        admin = await db.query(User).filter(User.role == "admin").first()
+        admin = db.query(User).filter(User.role == "admin").first()
         if admin:
             print("Admin user already exists.")
             return
@@ -37,7 +38,7 @@ async def create_admin_user():
         
         try:
             # Create user with admin role
-            user = await AuthService.create_user(
+            user = AuthService.create_user(
                 db=db,
                 username=admin_username,
                 email=admin_email,
@@ -48,20 +49,22 @@ async def create_admin_user():
             
             # Verify the admin user automatically
             if user and user.verification_token:
-                await AuthService.verify_email(db=db, token=user.verification_token)
+                AuthService.verify_email(db=db, token=user.verification_token)
                 print(f"Admin user created and verified: {admin_username}")
             else:
                 print("Failed to create admin user.")
         except Exception as e:
             print(f"Error creating admin user: {e}")
+    finally:
+        db.close()
 
 
-async def init_db():
+def init_db():
     """Initialize the database with required data."""
     print("Initializing database...")
-    await create_admin_user()
+    create_admin_user()
     print("Database initialization completed.")
 
 
 if __name__ == "__main__":
-    asyncio.run(init_db())
+    init_db()
