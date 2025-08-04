@@ -24,17 +24,22 @@ class AuthService:
     @staticmethod
     def authenticate_user(db: Session, username: str, password: str) -> Optional[User]:
         """
-        Authenticate a user with username and password.
+        Authenticate a user with username or email and password.
         
         Args:
             db: Database session
-            username: Username to authenticate
+            username: Username or email to authenticate
             password: Password to verify
             
         Returns:
             Optional[User]: The authenticated user or None if authentication fails
         """
-        user = db.query(User).filter(User.username == username).first()
+        # Check if input is an email (contains @)
+        if '@' in username:
+            user = db.query(User).filter(User.email == username).first()
+        else:
+            user = db.query(User).filter(User.username == username).first()
+            
         if not user or not verify_password(password, user.hashed_password):
             return None
         if not user.is_active:

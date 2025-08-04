@@ -17,8 +17,11 @@ const navigation = [
 ]
 
 const MainLayout = () => {
+  console.log('MainLayout - Rendering MainLayout component')
   const [sidebarOpen, setSidebarOpen] = useState(false)
   const { user, logout } = useAuth()
+  
+  console.log('MainLayout - User state:', { user })
 
   return (
     <div className="h-screen bg-gray-50">

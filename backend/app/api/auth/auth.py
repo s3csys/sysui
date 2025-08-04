@@ -5,7 +5,7 @@ from typing import List, Optional
 
 from app.db import get_db
 from app.models.token import Token, TokenData, RefreshTokenRequest, SessionInfo, SessionList
-from app.models.user import User
+from app.models.user import User, Session
 from app.services.auth import AuthService
 from app.services.email import email_service
 from app.core.security import verify_token, log_auth_success, log_auth_failure, log_security_event, log_security_violation, generate_fingerprint, verify_fingerprint
@@ -168,6 +168,25 @@ async def check_2fa_required(current_user: User = Depends(get_current_user), tok
     return current_user
 
 
+@router.get("/me", response_model=UserResponse)
+async def get_current_user_profile(current_user: User = Depends(get_current_active_verified_user)):
+    """
+    Get the current user's profile information.
+    
+    Returns:
+        UserResponse: The current user's profile information
+    """
+    return UserResponse(
+        id=current_user.id,
+        username=current_user.username,
+        email=current_user.email,
+        full_name=current_user.full_name,
+        is_active=current_user.is_active,
+        is_verified=current_user.is_verified,
+        role=current_user.role.value
+    )
+
+
 @router.post("/register", response_model=UserResponse, status_code=status.HTTP_201_CREATED)
 async def register(user_in: UserCreate, db: Session = Depends(get_db)):
     """
@@ -323,10 +342,10 @@ async def refresh_token(
         )
     
     # Check if refresh token is in database
-    session = db.query(User.Session).filter(
-        User.Session.user_id == user.id,
-        User.Session.refresh_token == refresh_request.refresh_token,
-        User.Session.is_active == True
+    session = db.query(Session).filter(
+        Session.user_id == user.id,
+        Session.refresh_token == refresh_request.refresh_token,
+        Session.is_active == True
     ).first()
     
     if not session:

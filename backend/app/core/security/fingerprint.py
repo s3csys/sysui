@@ -50,19 +50,11 @@ def verify_fingerprint(token_fingerprint: Optional[str], request_fingerprint: Op
     if not fingerprint_match:
         return False
     
-    # If IP addresses are provided, check if they're consistent
-    if token_ip and current_ip:
-        # For IPv4 addresses, compare the first three octets
-        # This allows for some mobility within the same network
-        if '.' in token_ip and '.' in current_ip:  # IPv4
-            token_network = '.'.join(token_ip.split('.')[:3])
-            current_network = '.'.join(current_ip.split('.')[:3])
-            return token_network == current_network
-        # For IPv6 addresses, compare the first 4 segments
-        elif ':' in token_ip and ':' in current_ip:  # IPv6
-            token_network = ':'.join(token_ip.split(':')[:4])
-            current_network = ':'.join(current_ip.split(':')[:4])
-            return token_network == current_network
+    # If IP addresses are provided, validate them
+    if token_ip is not None and current_ip is not None:
+        # Compare IP addresses - they should match for security
+        ip_match = token_ip == current_ip
+        return fingerprint_match and ip_match
     
     # If no IP check or IP formats don't match, rely on fingerprint match
     return fingerprint_match

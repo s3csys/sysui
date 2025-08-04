@@ -21,9 +21,10 @@ const SessionsPage = lazy(() => import('./pages/SessionsPage'))
 const NotFoundPage = lazy(() => import('./pages/NotFoundPage'))
 
 function App() {
+  console.log('App - Rendering App component')
   return (
     <AuthProvider>
-      <Suspense fallback={<LoadingSpinner />}>
+      <Suspense fallback={<div className="flex h-screen items-center justify-center"><LoadingSpinner size="lg" /></div>}>
         <Routes>
           {/* Auth routes */}
           <Route element={<AuthLayout />}>

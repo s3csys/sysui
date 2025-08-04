@@ -5,13 +5,17 @@ import LoadingSpinner from '../components/ui/LoadingSpinner'
 const DashboardPage = () => {
   const { user } = useAuth()
   const [isLoading, setIsLoading] = useState(true)
-  
-  // Simulating data loading
+
+  console.log('DashboardPage - Rendering with user:', user)
+
+  // Simulate data loading
   useEffect(() => {
+    console.log('DashboardPage - Loading effect started')
     const timer = setTimeout(() => {
+      console.log('DashboardPage - Setting isLoading to false')
       setIsLoading(false)
     }, 1000)
-    
+
     return () => clearTimeout(timer)
   }, [])
 

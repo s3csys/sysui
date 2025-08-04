@@ -1,4 +1,5 @@
 from fastapi import Request, Response, HTTPException, status
+from fastapi.responses import JSONResponse
 from starlette.middleware.base import BaseHTTPMiddleware
 from typing import Dict, Tuple, Optional, Callable
 import time
@@ -200,9 +201,10 @@ class RateLimitMiddleware(BaseHTTPMiddleware):
                         request
                     )
                     
-                    raise HTTPException(
+                    # Instead of raising an exception, return a response
+                    return JSONResponse(
                         status_code=status.HTTP_429_TOO_MANY_REQUESTS,
-                        detail=f"Too many requests. Please try again in {lockout_ttl} seconds."
+                        content={"detail": f"Too many requests. Please try again in {lockout_ttl} seconds."}
                     )
             except redis.RedisError:
                 # If Redis fails, continue without lockout check
@@ -277,17 +279,19 @@ class RateLimitMiddleware(BaseHTTPMiddleware):
                         # TODO: Implement notification system (email, SMS, etc.)
                         # This would typically call a notification service
                     
-                    raise HTTPException(
+                    # Instead of raising an exception, return a response
+                    return JSONResponse(
                         status_code=status.HTTP_429_TOO_MANY_REQUESTS,
-                        detail=f"Too many requests. Please try again in {lockout_period} seconds."
+                        content={"detail": f"Too many requests. Please try again in {lockout_period} seconds."}
                     )
                 except redis.RedisError:
                     # If Redis fails, use standard rate limit response
                     pass
             
-            raise HTTPException(
+            # Instead of raising an exception, return a response
+            return JSONResponse(
                 status_code=status.HTTP_429_TOO_MANY_REQUESTS,
-                detail="Rate limit exceeded. Please try again later."
+                content={"detail": "Rate limit exceeded. Please try again later."}
             )
         
         # Process request

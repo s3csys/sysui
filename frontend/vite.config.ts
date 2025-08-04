@@ -27,7 +27,7 @@ export default defineConfig(({ mode }) => {
     allowedHosts: allowedHosts,
     proxy: {
       '/api': {  // Proxy API requests to the backend
-        target: env.VITE_API_URL || 'http://127.0.0.1:8000',
+        target: env.VITE_API_URL || 'http://0.0.0.0:8000',
         changeOrigin: true,
         secure: false,
         // The backend expects requests at /api/v1/auth/register

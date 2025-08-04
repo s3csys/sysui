@@ -1,4 +1,4 @@
-from fastapi import FastAPI, Request
+from fastapi import FastAPI, Request, HTTPException
 from fastapi.middleware.cors import CORSMiddleware
 from fastapi.responses import JSONResponse
 import logging
@@ -36,6 +36,15 @@ def create_app() -> FastAPI:
     
     # Add rate limiting middleware
     app.add_middleware(RateLimitMiddleware)
+    
+    # Add exception handlers
+    @app.exception_handler(HTTPException)
+    async def http_exception_handler(request, exc):
+        return JSONResponse(
+            status_code=exc.status_code,
+            content={"detail": exc.detail},
+            headers=exc.headers,
+        )
     
     # Add request logging middleware
     @app.middleware("http")

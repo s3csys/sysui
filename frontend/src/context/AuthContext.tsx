@@ -33,8 +33,10 @@ export function AuthProvider({ children }: { children: ReactNode }) {
     const checkAuthStatus = async () => {
       try {
         const token = localStorage.getItem('accessToken')
+        console.log('Checking auth status, token exists:', !!token)
         
         if (!token) {
+          console.log('No token found, not authenticated')
           setIsLoading(false)
           return
         }
@@ -43,26 +45,40 @@ export function AuthProvider({ children }: { children: ReactNode }) {
         try {
           const decoded = jwtDecode(token)
           const currentTime = Date.now() / 1000
+          console.log('Token expiry check:', decoded.exp, 'Current time:', currentTime)
           
           if (decoded.exp && decoded.exp < currentTime) {
             // Token is expired, try to refresh
+            console.log('Token expired, attempting refresh')
             await refreshToken()
           } else {
             // Token is valid, get user info
-            const userData = await authService.getCurrentUser()
-            setUser(userData)
+            console.log('Token valid, getting user info')
+            try {
+              const userData = await authService.getCurrentUser()
+              console.log('User data received:', userData)
+              setUser(userData)
+            } catch (error) {
+              console.error('Error getting user data:', error)
+              // If getCurrentUser fails, try to refresh token
+              console.log('Attempting token refresh after getCurrentUser failure')
+              await refreshToken()
+            }
           }
         } catch (error) {
           // Invalid token, try to refresh
+          console.error('Token validation error:', error)
           await refreshToken()
         }
       } catch (error) {
         // If refresh fails, clear auth state
+        console.error('Auth check failed:', error)
         localStorage.removeItem('accessToken')
         localStorage.removeItem('refreshToken')
         setUser(null)
       } finally {
         setIsLoading(false)
+        console.log('Auth loading complete, isAuthenticated:', !!user)
       }
     }
 
@@ -70,23 +86,36 @@ export function AuthProvider({ children }: { children: ReactNode }) {
   }, [])
 
   const refreshToken = async () => {
+    console.log('Starting token refresh process')
     try {
       const refreshToken = localStorage.getItem('refreshToken')
+      console.log('Refresh token exists:', !!refreshToken)
       
       if (!refreshToken) {
+        console.error('No refresh token available')
         throw new Error('No refresh token available')
       }
       
-      const response = await authService.refreshToken(refreshToken)
-      
-      localStorage.setItem('accessToken', response.accessToken)
-      localStorage.setItem('refreshToken', response.refreshToken)
-      
-      const userData = await authService.getCurrentUser()
-      setUser(userData)
-      
-      return true
+      console.log('Calling authService.refreshToken')
+      try {
+        const response = await authService.refreshToken(refreshToken)
+        console.log('Token refresh successful, new tokens received')
+        
+        localStorage.setItem('accessToken', response.access_token)
+        localStorage.setItem('refreshToken', response.refresh_token)
+        
+        console.log('Tokens stored in localStorage, fetching user data')
+        const userData = await authService.getCurrentUser()
+        console.log('User data after refresh:', userData)
+        setUser(userData)
+        
+        return true
+      } catch (refreshError) {
+        console.error('Token refresh API call failed:', refreshError)
+        throw refreshError
+      }
     } catch (error) {
+      console.error('Token refresh process failed:', error)
       localStorage.removeItem('accessToken')
       localStorage.removeItem('refreshToken')
       setUser(null)
@@ -95,23 +124,37 @@ export function AuthProvider({ children }: { children: ReactNode }) {
   }
 
   const login = async (email: string, password: string) => {
+    console.log('Login attempt for email:', email)
     try {
+      console.log('Calling authService.login')
       const response = await authService.login(email, password)
+      console.log('Login response received:', { ...response, access_token: response.access_token ? '[REDACTED]' : undefined, refresh_token: response.refresh_token ? '[REDACTED]' : undefined })
       
       if (response.requiresTwoFactor) {
+        console.log('2FA required, storing email in sessionStorage')
         // Store email for 2FA verification
         sessionStorage.setItem('twoFactorEmail', email)
         return { requiresTwoFactor: true }
       }
       
-      localStorage.setItem('accessToken', response.accessToken)
-      localStorage.setItem('refreshToken', response.refreshToken)
+      console.log('Storing tokens in localStorage')
+      // Fix: Use snake_case property names from the backend response
+      localStorage.setItem('accessToken', response.access_token)
+      localStorage.setItem('refreshToken', response.refresh_token)
       
-      const userData = await authService.getCurrentUser()
-      setUser(userData)
-      
-      return { requiresTwoFactor: false }
+      console.log('Fetching user data after login')
+      try {
+        const userData = await authService.getCurrentUser()
+        console.log('User data received after login:', userData)
+        setUser(userData)
+        console.log('User state updated, authentication complete')
+        return { requiresTwoFactor: false }
+      } catch (userDataError) {
+        console.error('Failed to fetch user data after login:', userDataError)
+        throw userDataError
+      }
     } catch (error) {
+      console.error('Login failed:', error)
       throw error
     }
   }
@@ -167,8 +210,8 @@ export function AuthProvider({ children }: { children: ReactNode }) {
       
       const response = await authService.verifyTwoFactorLogin(email, token)
       
-      localStorage.setItem('accessToken', response.accessToken)
-      localStorage.setItem('refreshToken', response.refreshToken)
+      localStorage.setItem('accessToken', response.access_token)
+      localStorage.setItem('refreshToken', response.refresh_token)
       
       const userData = await authService.getCurrentUser()
       setUser(userData)

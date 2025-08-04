@@ -12,7 +12,7 @@ interface LoginFormValues {
 }
 
 const LoginSchema = Yup.object().shape({
-  email: Yup.string().email('Invalid email').required('Email is required'),
+  email: Yup.string().required('Email or username is required'),
   password: Yup.string().required('Password is required'),
   rememberMe: Yup.boolean(),
 })
@@ -35,18 +35,25 @@ const LoginPage = () => {
   }
 
   const handleSubmit = async (values: LoginFormValues) => {
+    console.log('LoginPage - Login attempt started for:', values.email)
+    console.log('LoginPage - Return URL is:', returnUrl)
     setIsLoading(true)
     setError('')
 
     try {
+      console.log('LoginPage - Calling login function')
       const result = await login(values.email, values.password)
+      console.log('LoginPage - Login result:', result)
 
       if (result.requiresTwoFactor) {
+        console.log('LoginPage - 2FA required, navigating to verification page')
         navigate('/verify-2fa')
       } else {
+        console.log('LoginPage - Login successful, navigating to:', returnUrl)
         navigate(returnUrl)
       }
     } catch (err: any) {
+      console.error('LoginPage - Login error:', err)
       setError(err.response?.data?.message || 'Failed to login. Please check your credentials.')
     } finally {
       setIsLoading(false)
@@ -64,13 +71,13 @@ const LoginPage = () => {
           <Form className="space-y-6">
             <div>
               <label htmlFor="email" className="block text-sm font-medium leading-6 text-gray-900">
-                Email address
+                Email or Username
               </label>
               <div className="mt-2">
                 <Field
                   id="email"
                   name="email"
-                  type="email"
+                  type="text"
                   autoComplete="email"
                   className="input"
                   disabled={isLoading}
