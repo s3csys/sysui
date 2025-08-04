@@ -4,6 +4,7 @@ from app.api.auth import router as auth_router
 from app.api.v1.admin import router as admin_router
 from app.api.v1.permissions import router as permissions_router
 from app.api.v1.profile import router as profile_router
+from app.api.v1.servers import router as servers_router
 
 api_router = APIRouter()
 
@@ -15,4 +16,4 @@ api_router.include_router(profile_router, prefix="/profile", tags=["profile"])
 
 # Add more routers here as needed
 # api_router.include_router(users_router, prefix="/users", tags=["users"])
-# api_router.include_router(servers_router, prefix="/servers", tags=["servers"])
+api_router.include_router(servers_router, prefix="/v1", tags=["servers"])

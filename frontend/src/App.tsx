@@ -18,6 +18,7 @@ const VerifyTwoFactorPage = lazy(() => import('./pages/auth/VerifyTwoFactorPage'
 const DashboardPage = lazy(() => import('./pages/DashboardPage'))
 const ProfilePage = lazy(() => import('./pages/ProfilePage'))
 const SessionsPage = lazy(() => import('./pages/SessionsPage'))
+const ServersPage = lazy(() => import('./pages/ServersPage'))
 const NotFoundPage = lazy(() => import('./pages/NotFoundPage'))
 
 function App() {
@@ -43,6 +44,7 @@ function App() {
             <Route path="/dashboard" element={<DashboardPage />} />
             <Route path="/profile" element={<ProfilePage />} />
             <Route path="/sessions" element={<SessionsPage />} />
+            <Route path="/servers/*" element={<ServersPage />} />
             
             {/* Admin routes */}
             <Route 
