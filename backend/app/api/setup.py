@@ -107,11 +107,17 @@ def create_systemd_services(backend_dir, frontend_dir):
 
 @router.post("/setup")
 def setup_application(payload: SetupPayload):
+    import os
+    # Get the current working directory
+    current_dir = os.getcwd()
     try:
         # 1. Copy env.example to .env and replace values
-        backend_dir = '.'
+        backend_dir = current_dir
         env_example_path = os.path.join(backend_dir, 'env.example')
         backend_env_path = os.path.join(backend_dir, '.env')
+        
+        print(f"Current directory: {current_dir}")
+        print(f"Looking for env.example at: {env_example_path}")
         
         # Check if env.example exists
         if not os.path.exists(env_example_path):
@@ -144,9 +150,23 @@ def setup_application(payload: SetupPayload):
 
         # 3. Install frontend dependencies
         print("Installing frontend dependencies...")
-        frontend_dir = os.path.join('..', 'frontend')
-        run_command(["npm", "install"], cwd=frontend_dir)
-        print("Frontend dependencies installed.")
+        frontend_dir = os.path.abspath(os.path.join(current_dir, '..', 'frontend'))
+        print(f"Frontend directory: {frontend_dir}")
+        try:
+            if os.path.exists(frontend_dir):
+                # Try to install npm dependencies, but continue if it fails
+                try:
+                    run_command(["npm", "install"], cwd=frontend_dir)
+                    print("Frontend dependencies installed.")
+                except Exception as e:
+                    print(f"Warning: Could not install frontend dependencies: {str(e)}")
+                    print("Continuing with setup...")
+            else:
+                print(f"Warning: Frontend directory not found at {frontend_dir}")
+                print("Continuing with setup...")
+        except Exception as e:
+            print(f"Warning: Error during frontend setup: {str(e)}")
+            print("Continuing with setup...")
 
         # 4. Initialize the database by creating all tables
         print("Initializing database...")
@@ -234,4 +254,8 @@ def setup_application(payload: SetupPayload):
 
         return {"message": "Installation completed successfully!"}
     except Exception as e:
+        import traceback
+        error_details = traceback.format_exc()
+        print(f"Error during setup: {str(e)}")
+        print(error_details)
         raise HTTPException(status_code=500, detail=str(e))

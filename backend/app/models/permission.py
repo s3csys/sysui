@@ -75,7 +75,11 @@ class Permission(Base):
     
     __tablename__ = "permissions"
     
-    name = Column(String(50), primary_key=True)
+    # Override id from Base with None to avoid having two primary keys
+    id = None
+    
+    # Use name as the primary key with autoincrement=False and nullable=False explicitly set
+    name = Column(String(50), primary_key=True, nullable=False, autoincrement=False)
     users = relationship(
         "User", 
         secondary=user_permission_association, 
