@@ -8,7 +8,7 @@ interface AuthContextType {
   user: User | null
   isAuthenticated: boolean
   isLoading: boolean
-  login: (email: string, password: string) => Promise<{ requiresTwoFactor: boolean }>
+  login: (email: string, password: string, rememberMe?: boolean) => Promise<{ requiresTwoFactor: boolean }>
   register: (userData: { email: string; username: string; password: string }) => Promise<void>
   logout: () => void
   setupTwoFactor: () => Promise<{ qrCodeUrl: string; secret: string }>
@@ -123,11 +123,11 @@ export function AuthProvider({ children }: { children: ReactNode }) {
     }
   }
 
-  const login = async (email: string, password: string) => {
+  const login = async (email: string, password: string, rememberMe: boolean = false) => {
     console.log('Login attempt for email:', email)
     try {
       console.log('Calling authService.login')
-      const response = await authService.login(email, password)
+      const response = await authService.login(email, password, rememberMe)
       console.log('Login response received:', { ...response, access_token: response.access_token ? '[REDACTED]' : undefined, refresh_token: response.refresh_token ? '[REDACTED]' : undefined })
       
       if (response.requiresTwoFactor) {

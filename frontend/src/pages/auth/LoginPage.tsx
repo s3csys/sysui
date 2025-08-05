@@ -42,7 +42,7 @@ const LoginPage = () => {
 
     try {
       console.log('LoginPage - Calling login function')
-      const result = await login(values.email, values.password)
+      const result = await login(values.email, values.password, values.rememberMe)
       console.log('LoginPage - Login result:', result)
 
       if (result.requiresTwoFactor) {

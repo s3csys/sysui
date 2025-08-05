@@ -278,12 +278,19 @@ async def login(
     user_agent = request.headers.get("user-agent")
     ip_address = request.client.host if request.client else None
     
+    # Check for remember_me parameter
+    remember_me = False
+    if hasattr(form_data, 'scopes') and form_data.scopes:
+        # OAuth2PasswordRequestForm stores extra fields in scopes
+        remember_me = 'remember_me' in form_data.scopes
+    
     # Create tokens
     access_token, refresh_token = AuthService.create_tokens(
         user=user,
         user_agent=user_agent,
         ip_address=ip_address,
-        db=db
+        db=db,
+        remember_me=remember_me
     )
     
     # Log successful login

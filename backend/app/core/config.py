@@ -12,6 +12,9 @@ class Settings(BaseSettings):
     ACCESS_TOKEN_EXPIRE_MINUTES: int = 60 * 24 * 8
     # 60 minutes * 24 hours * 30 days = 30 days
     REFRESH_TOKEN_EXPIRE_MINUTES: int = 60 * 24 * 30
+    # Long-term token expiration (for "remember me" functionality)
+    LONG_TERM_ACCESS_TOKEN_EXPIRE_DAYS: int = 30  # 30 days
+    LONG_TERM_REFRESH_TOKEN_EXPIRE_DAYS: int = 90  # 90 days
     SERVER_NAME: str = "SysUI"
     SERVER_HOST: AnyHttpUrl = "http://localhost:8000"
     API_HOST: str = "0.0.0.0"

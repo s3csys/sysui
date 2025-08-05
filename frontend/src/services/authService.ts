@@ -125,6 +125,12 @@ export const authService = {
     formData.append('username', username)
     formData.append('password', password)
     
+    // For OAuth2PasswordRequestForm, additional parameters should be sent as scopes
+    // The backend will check for 'remember_me' in the scopes list
+    if (rememberMe) {
+      formData.append('scope', 'remember_me')
+    }
+    
     // Use the api instance which will correctly apply the proxy rewrite rules
     const response = await api.post('/auth/login', formData, {
       headers: {

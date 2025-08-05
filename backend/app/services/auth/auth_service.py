@@ -121,7 +121,7 @@ class AuthService:
         return True
     
     @staticmethod
-    def create_tokens(user: User, user_agent: Optional[str] = None, ip_address: Optional[str] = None, db: Session = None) -> Tuple[str, str]:
+    def create_tokens(user: User, user_agent: Optional[str] = None, ip_address: Optional[str] = None, db: Session = None, remember_me: bool = False) -> Tuple[str, str]:
         """
         Create access and refresh tokens for a user.
         
@@ -130,6 +130,7 @@ class AuthService:
             user_agent: Optional user agent string for session tracking
             ip_address: Optional IP address for session tracking
             db: Optional database session for storing refresh token
+            remember_me: Whether to create long-lived tokens
             
         Returns:
             Tuple[str, str]: A tuple containing the access token and refresh token
@@ -142,13 +143,38 @@ class AuthService:
             # This helps prevent token reuse across different devices/browsers
             fingerprint = generate_fingerprint(user_agent)
         
+        # Set token expiration based on remember_me flag
+        access_token_expires = None
+        refresh_token_expires = None
+        
+        if remember_me:
+            # Use longer expiration for "remember me" option
+            access_token_expires = timedelta(days=settings.LONG_TERM_ACCESS_TOKEN_EXPIRE_DAYS)
+            refresh_token_expires = timedelta(days=settings.LONG_TERM_REFRESH_TOKEN_EXPIRE_DAYS)
+        
         # Create tokens with fingerprint and IP address
-        access_token = create_access_token(subject=user.id, fingerprint=fingerprint, ip_address=ip_address)
-        refresh_token = create_refresh_token(subject=user.id, fingerprint=fingerprint, ip_address=ip_address)
+        access_token = create_access_token(
+            subject=user.id, 
+            fingerprint=fingerprint, 
+            ip_address=ip_address,
+            expires_delta=access_token_expires
+        )
+        
+        refresh_token = create_refresh_token(
+            subject=user.id, 
+            fingerprint=fingerprint, 
+            ip_address=ip_address,
+            expires_delta=refresh_token_expires
+        )
         
         # Store refresh token in database if session is provided
         if db:
-            expires_at = datetime.utcnow() + timedelta(minutes=settings.REFRESH_TOKEN_EXPIRE_MINUTES)
+            # Calculate expiration time based on remember_me flag
+            if remember_me and hasattr(settings, 'LONG_TERM_REFRESH_TOKEN_EXPIRE_DAYS'):
+                expires_at = datetime.utcnow() + timedelta(days=settings.LONG_TERM_REFRESH_TOKEN_EXPIRE_DAYS)
+            else:
+                expires_at = datetime.utcnow() + timedelta(minutes=settings.REFRESH_TOKEN_EXPIRE_MINUTES)
+                
             session = UserSession(
                 user_id=user.id,
                 refresh_token=refresh_token,
