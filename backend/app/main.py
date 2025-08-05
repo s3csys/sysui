@@ -83,8 +83,8 @@ def create_app() -> FastAPI:
             content={"detail": "Internal server error"},
         )
     
-    # Include setup router
-    app.include_router(setup_router.router)
+    # Include setup router with API_V1_STR prefix
+    app.include_router(setup_router.router, prefix=settings.API_V1_STR)
 
     # Include API router
     app.include_router(api_router, prefix=settings.API_V1_STR)
