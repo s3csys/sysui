@@ -191,14 +191,9 @@ export const authService = {
   
   // Refresh token
   async refreshToken(refreshToken: string) {
-    // FIXED: Use URLSearchParams for x-www-form-urlencoded format
-    const formData = new URLSearchParams()
-    formData.append('refresh_token', refreshToken)
-    
-    const response = await api.post('/auth/refresh', formData, {
-      headers: {
-        'Content-Type': 'application/x-www-form-urlencoded'
-      }
+    // Send as JSON object with refresh_token field
+    const response = await api.post('/auth/refresh', {
+      refresh_token: refreshToken
     })
     return response.data
   },
