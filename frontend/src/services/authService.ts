@@ -131,13 +131,18 @@ export const authService = {
       formData.append('scope', 'remember_me')
     }
     
-    // Use the api instance which will correctly apply the proxy rewrite rules
-    const response = await api.post('/auth/login', formData, {
-      headers: {
-        'Content-Type': 'application/x-www-form-urlencoded'
-      }
-    })
-    return response.data
+    try {
+      // Use the api instance which will correctly apply the proxy rewrite rules
+      const response = await api.post('/auth/login', formData, {
+        headers: {
+          'Content-Type': 'application/x-www-form-urlencoded'
+        }
+      })
+      return response.data
+    } catch (error) {
+      console.error('Login error:', error)
+      throw error
+    }
   },
   
   // Logout user
