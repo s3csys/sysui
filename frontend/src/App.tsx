@@ -20,9 +20,42 @@ const ProfilePage = lazy(() => import('./pages/ProfilePage'))
 const SessionsPage = lazy(() => import('./pages/SessionsPage'))
 const ServersPage = lazy(() => import('./pages/ServersPage'))
 const NotFoundPage = lazy(() => import('./pages/NotFoundPage'))
+const SetupPage = lazy(() => import('./pages/Setup'))
+
+import { useState, useEffect } from 'react';
 
 function App() {
-  console.log('App - Rendering App component')
+  const [isConfigured, setIsConfigured] = useState(null);
+
+  useEffect(() => {
+    const checkStatus = async () => {
+      try {
+        const response = await fetch('/api/v1/status');
+        const data = await response.json();
+        setIsConfigured(data.configured);
+      } catch (error) {
+        setIsConfigured(false);
+      }
+    };
+    checkStatus();
+  }, []);
+
+  if (isConfigured === null) {
+    return <div className="flex h-screen items-center justify-center"><LoadingSpinner size="lg" /></div>;
+  }
+
+
+  if (!isConfigured) {
+    return (
+      <Suspense fallback={<div className="flex h-screen items-center justify-center"><LoadingSpinner size="lg" /></div>}>
+        <Routes>
+          <Route path="/setup" element={<SetupPage />} />
+          <Route path="*" element={<Navigate to="/setup" replace />} />
+        </Routes>
+      </Suspense>
+    )
+  }
+
   return (
     <AuthProvider>
       <Suspense fallback={<div className="flex h-screen items-center justify-center"><LoadingSpinner size="lg" /></div>}>

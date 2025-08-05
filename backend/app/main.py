@@ -7,6 +7,7 @@ import socket
 import platform
 
 from app.api.v1 import api_router
+from app.api import setup as setup_router
 from app.core.config import settings
 from app.middleware import RateLimitMiddleware
 from app.core.security import log_security_event
@@ -82,6 +83,9 @@ def create_app() -> FastAPI:
             content={"detail": "Internal server error"},
         )
     
+    # Include setup router
+    app.include_router(setup_router.router)
+
     # Include API router
     app.include_router(api_router, prefix=settings.API_V1_STR)
     
@@ -89,6 +93,11 @@ def create_app() -> FastAPI:
     @app.get("/health")
     def health_check():
         return {"status": "ok"}
+
+    @app.get("/api/v1/status")
+    def get_status():
+        is_configured = os.path.exists('.env')
+        return {"configured": is_configured}
     
     # Add startup event handler
     @app.on_event("startup")
