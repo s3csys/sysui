@@ -110,7 +110,8 @@ def init_permissions():
             
         # Create all permissions from the PermissionEnum
         for permission in PermissionEnum:
-            db.add(Permission(name=permission.value))
+            perm = Permission(name=permission.value)
+            db.add(perm)
         
         db.commit()
         print(f"Initialized {len(PermissionEnum)} permissions.")

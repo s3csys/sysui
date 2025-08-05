@@ -190,7 +190,8 @@ def setup_application(payload: SetupPayload):
             if existing_permissions == 0:
                 # Create all permissions from the PermissionEnum
                 for permission in PermissionEnum:
-                    db.add(Permission(name=permission.value))
+                    perm = Permission(name=permission.value)
+                    db.add(perm)
                 
                 db.commit()
                 print(f"Initialized {len(PermissionEnum)} permissions.")

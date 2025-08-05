@@ -1,6 +1,6 @@
 from enum import Enum, auto
 from typing import List, Set, Dict, Optional
-from sqlalchemy import Column, String
+from sqlalchemy import Column, String, Integer
 from sqlalchemy.orm import relationship, Mapped, mapped_column
 
 from app.models.base import Base
@@ -75,16 +75,16 @@ class Permission(Base):
     
     __tablename__ = "permissions"
     
-    # Override id from Base with None to avoid having two primary keys
-    id = None
+    # Override id from Base with explicit autoincrement=True to fix SQLAlchemy warning
+    id = Column(Integer, primary_key=True, index=True, autoincrement=True)
     
-    # Use name as the primary key with autoincrement=False and nullable=False explicitly set
-    name = Column(String(50), primary_key=True, nullable=False, autoincrement=False)
+    # Use name as a unique identifier but not as primary key
+    name = Column(String(50), unique=True, nullable=False)
     users = relationship(
         "User", 
         secondary=user_permission_association, 
         back_populates="custom_permissions",
-        primaryjoin="Permission.name == user_permission_association.c.permission_name",
+        primaryjoin="Permission.id == user_permission_association.c.permission_id",
         secondaryjoin="user_permission_association.c.user_id == User.id"
     )
     

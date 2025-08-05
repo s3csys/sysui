@@ -15,7 +15,8 @@ user_permission_association = Table(
     'user_permission_association',
     Base.metadata,
     Column('user_id', Integer, ForeignKey('user.id', ondelete="CASCADE"), primary_key=True),
-    Column('permission_name', String(50), ForeignKey('permissions.name', ondelete="CASCADE"), primary_key=True)
+    Column('permission_id', Integer, ForeignKey('permissions.id', ondelete="CASCADE"), primary_key=True),
+    Column('permission_name', String(50), nullable=False)
 )
 
 

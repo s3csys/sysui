@@ -90,7 +90,7 @@ class User(Base):
         back_populates="users",
         uselist=True,
         primaryjoin="User.id == user_permission_association.c.user_id",
-        secondaryjoin="Permission.name == user_permission_association.c.permission_name"
+        secondaryjoin="Permission.id == user_permission_association.c.permission_id"
     )
     
     # 2FA fields
