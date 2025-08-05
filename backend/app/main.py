@@ -120,6 +120,28 @@ def create_app() -> FastAPI:
         is_configured = env_exists and setup_completed
         logger.info(f"System configuration status: {is_configured}")
         return {"configured": is_configured}
+
+    # Add the same endpoint at API_V1_STR path for consistency
+    @app.get(f"{settings.API_V1_STR}/status")
+    def get_api_status():
+        # Reuse the same logic as the /status endpoint
+        env_exists = os.path.exists('.env')
+        setup_completed = False
+        if env_exists:
+            try:
+                from app.db.session import SessionLocal
+                from app.models.user import User
+                
+                db = SessionLocal()
+                user_exists = db.query(User).first() is not None
+                db.close()
+                
+                setup_completed = user_exists
+            except Exception as e:
+                logger.error(f"Error checking if setup is completed: {e}")
+        
+        is_configured = env_exists and setup_completed
+        return {"configured": is_configured}
     
     # Add startup event handler
     @app.on_event("startup")
