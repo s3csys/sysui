@@ -29,7 +29,7 @@ class ServerCredentialCreate(ServerCredentialBase):
     password: Optional[str] = Field(None, min_length=1)
     private_key: Optional[str] = None
     
-    @root_validator
+    @root_validator(skip_on_failure=True)
     def validate_auth_credentials(cls, values):
         auth_type = values.get('auth_type')
         password = values.get('password')
@@ -80,7 +80,7 @@ class ServerTagResponse(ServerTagBase):
     id: int
     
     class Config:
-        orm_mode = True
+        from_attributes = True
 
 class ServerStatusResponse(BaseModel):
     is_online: bool
@@ -88,7 +88,7 @@ class ServerStatusResponse(BaseModel):
     error_message: Optional[str] = None
     
     class Config:
-        orm_mode = True
+        from_attributes = True
 
 class ServerCredentialResponse(BaseModel):
     username: str
@@ -96,7 +96,7 @@ class ServerCredentialResponse(BaseModel):
     # Note: We don't include password or private_key in responses
     
     class Config:
-        orm_mode = True
+        from_attributes = True
 
 class ServerResponse(ServerBase):
     id: int
@@ -107,7 +107,7 @@ class ServerResponse(ServerBase):
     updated_at: datetime
     
     class Config:
-        orm_mode = True
+        from_attributes = True
 
 class ServerListResponse(BaseModel):
     id: int
@@ -118,7 +118,7 @@ class ServerListResponse(BaseModel):
     tags: List[str] = []  # Just tag names for list view
     
     class Config:
-        orm_mode = True
+        from_attributes = True
 
 class ServerDetailResponse(ServerResponse):
     system_info: Optional[Dict[str, Any]] = None
@@ -132,7 +132,7 @@ class TestConnectionRequest(BaseModel):
     password: Optional[str] = None
     private_key: Optional[str] = None
     
-    @root_validator
+    @root_validator(skip_on_failure=True)
     def validate_auth_credentials(cls, values):
         auth_type = values.get('auth_type')
         password = values.get('password')
