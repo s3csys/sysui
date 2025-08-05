@@ -124,24 +124,54 @@ def create_app() -> FastAPI:
     # Add the same endpoint at API_V1_STR path for consistency
     @app.get(f"{settings.API_V1_STR}/status")
     def get_api_status():
-        # Reuse the same logic as the /status endpoint
-        env_exists = os.path.exists('.env')
-        setup_completed = False
-        if env_exists:
-            try:
-                from app.db.session import SessionLocal
-                from app.models.user import User
-                
-                db = SessionLocal()
-                user_exists = db.query(User).first() is not None
-                db.close()
-                
-                setup_completed = user_exists
-            except Exception as e:
-                logger.error(f"Error checking if setup is completed: {e}")
+        """Get detailed API status including database connection health"""
+        status = {
+            "api": "ok",
+            "configured": False,
+            "database": {
+                "connected": False,
+                "error": None,
+                "tables_exist": False,
+                "users_exist": False
+            },
+            "env_file": os.path.exists('.env')
+        }
         
-        is_configured = env_exists and setup_completed
-        return {"configured": is_configured}
+        # Check database connection and status
+        try:
+            from app.db.session import SessionLocal, engine
+            from app.models.user import User
+            from sqlalchemy import inspect, text
+            
+            # Test basic connection
+            inspector = inspect(engine)
+            status["database"]["connected"] = True
+            
+            # Check if tables exist
+            has_tables = inspector.has_table("user") and inspector.has_table("session")
+            status["database"]["tables_exist"] = has_tables
+            
+            if has_tables:
+                # Check if users exist
+                db = SessionLocal()
+                try:
+                    user_exists = db.query(User).first() is not None
+                    status["database"]["users_exist"] = user_exists
+                    status["configured"] = status["env_file"] and user_exists
+                    
+                    # Check session table schema
+                    session_columns = {c["name"]: c for c in inspector.get_columns("session")}
+                    if "refresh_token" in session_columns:
+                        refresh_token_type = session_columns["refresh_token"]["type"]
+                        status["database"]["refresh_token_column_type"] = str(refresh_token_type)
+                finally:
+                    db.close()
+        except Exception as e:
+            logger.error(f"Error checking database status: {e}")
+            status["database"]["error"] = str(e)
+            status["api"] = "error"
+        
+        return status
     
     # Add startup event handler
     @app.on_event("startup")

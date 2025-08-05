@@ -215,7 +215,7 @@ class Session(Base):
     __allow_unmapped__ = True  # Allow legacy annotations to be used alongside Mapped
     
     user_id: Mapped[int] = mapped_column(Integer, ForeignKey("user.id", ondelete="CASCADE"), nullable=False, index=True)
-    refresh_token: Mapped[str] = mapped_column(String(255), nullable=False, unique=True, index=True)
+    refresh_token: Mapped[str] = mapped_column(String(512), nullable=False, unique=True, index=True)
     user_agent: Mapped[Optional[str]] = mapped_column(Text, nullable=True)
     ip_address: Mapped[Optional[str]] = mapped_column(String(50), nullable=True, index=True)
     expires_at: Mapped[datetime] = mapped_column(DateTime, nullable=False, index=True)
