@@ -30,7 +30,7 @@ function App() {
   useEffect(() => {
     const checkStatus = async () => {
       try {
-        const response = await fetch('/api/v1/status');
+        const response = await fetch('/api/status');
         const data = await response.json();
         setIsConfigured(data.configured);
       } catch (error) {

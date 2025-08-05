@@ -32,7 +32,7 @@ const Setup = () => {
         setIsInstalling(true);
         
         try {
-            const response = await fetch('/api/v1/setup', { // Using the correct API endpoint
+            const response = await fetch('/api/setup', { // Using the correct API endpoint
                 method: 'POST',
                 headers: {
                     'Content-Type': 'application/json',

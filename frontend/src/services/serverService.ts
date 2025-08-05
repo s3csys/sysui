@@ -96,56 +96,56 @@ export interface TestConnectionResult {
 const serverService = {
   // Server Tags
   getTags: async (): Promise<ServerTag[]> => {
-    const response = await axios.get(`${API_URL}/v1/servers/tags`);
+    const response = await axios.get(`${API_URL}/servers/tags`);
     return response.data;
   },
 
   createTag: async (tag: { name: string; description?: string }): Promise<ServerTag> => {
-    const response = await axios.post(`${API_URL}/v1/servers/tags`, tag);
+    const response = await axios.post(`${API_URL}/servers/tags`, tag);
     return response.data;
   },
 
   updateTag: async (id: number, tag: { name?: string; description?: string }): Promise<ServerTag> => {
-    const response = await axios.put(`${API_URL}/v1/servers/tags/${id}`, tag);
+    const response = await axios.put(`${API_URL}/servers/tags/${id}`, tag);
     return response.data;
   },
 
   deleteTag: async (id: number): Promise<void> => {
-    await axios.delete(`${API_URL}/v1/servers/tags/${id}`);
+    await axios.delete(`${API_URL}/servers/tags/${id}`);
   },
 
   // Servers
   getServers: async (params?: { skip?: number; limit?: number; tag?: string }): Promise<ServerListItem[]> => {
-    const response = await axios.get(`${API_URL}/v1/servers`, { params });
+    const response = await axios.get(`${API_URL}/servers`, { params });
     return response.data;
   },
 
   getServer: async (id: number): Promise<ServerDetail> => {
-    const response = await axios.get(`${API_URL}/v1/servers/${id}`);
+    const response = await axios.get(`${API_URL}/servers/${id}`);
     return response.data;
   },
 
   createServer: async (server: CreateServerData): Promise<Server> => {
-    const response = await axios.post(`${API_URL}/v1/servers`, server);
+    const response = await axios.post(`${API_URL}/servers`, server);
     return response.data;
   },
 
   updateServer: async (id: number, server: UpdateServerData): Promise<Server> => {
-    const response = await axios.put(`${API_URL}/v1/servers/${id}`, server);
+    const response = await axios.put(`${API_URL}/servers/${id}`, server);
     return response.data;
   },
 
   deleteServer: async (id: number): Promise<void> => {
-    await axios.delete(`${API_URL}/v1/servers/${id}`);
+    await axios.delete(`${API_URL}/servers/${id}`);
   },
 
   checkServerStatus: async (id: number): Promise<ServerDetail> => {
-    const response = await axios.post(`${API_URL}/v1/servers/${id}/check`);
+    const response = await axios.post(`${API_URL}/servers/${id}/check`);
     return response.data;
   },
 
   testConnection: async (data: TestConnectionData): Promise<TestConnectionResult> => {
-    const response = await axios.post(`${API_URL}/v1/servers/test-connection`, data);
+    const response = await axios.post(`${API_URL}/servers/test-connection`, data);
     return response.data;
   },
 };

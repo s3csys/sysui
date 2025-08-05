@@ -95,7 +95,7 @@ def create_app() -> FastAPI:
     def health_check():
         return {"status": "ok"}
 
-    @app.get("/api/v1/status")
+    @app.get("/status")
     def get_status():
         # Check if .env file exists (basic configuration)
         env_exists = os.path.exists('.env')
