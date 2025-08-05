@@ -1,6 +1,8 @@
 import React, { useState } from 'react';
+import { useNavigate } from 'react-router-dom';
 
 const Setup = () => {
+    const navigate = useNavigate();
     const [step, setStep] = useState(1);
     const [formData, setFormData] = useState({
         db_host: 'localhost',
@@ -14,6 +16,7 @@ const Setup = () => {
     });
     const [message, setMessage] = useState('');
     const [error, setError] = useState('');
+    const [isInstalling, setIsInstalling] = useState(false);
 
     const handleChange = (e: React.ChangeEvent<HTMLInputElement>) => {
         setFormData({ ...formData, [e.target.name]: e.target.value });
@@ -26,22 +29,34 @@ const Setup = () => {
         e.preventDefault();
         setError('');
         setMessage('');
+        setIsInstalling(true);
+        
         try {
-            const response = await fetch('/api/setup', { // Assuming the backend is proxied
+            const response = await fetch('/api/v1/setup', { // Using the correct API endpoint
                 method: 'POST',
                 headers: {
                     'Content-Type': 'application/json',
                 },
                 body: JSON.stringify(formData),
             });
+            
             const result = await response.json();
+            
             if (response.ok) {
-                setMessage(result.message);
+                setMessage(result.message || 'Installation completed successfully!');
+                
+                // Wait a moment to show the success message before redirecting
+                setTimeout(() => {
+                    // Redirect to login page after successful installation
+                    window.location.href = '/login';
+                }, 3000);
             } else {
-                setError(result.detail || 'An error occurred.');
+                setError(result.detail || 'An error occurred during installation.');
+                setIsInstalling(false);
             }
         } catch (err) {
-            setError('Failed to connect to the server.');
+            setError('Failed to connect to the server. Please check your connection and try again.');
+            setIsInstalling(false);
         }
     };
 
@@ -94,12 +109,32 @@ const Setup = () => {
                             </div>
                             <div style={{ display: 'flex', justifyContent: 'space-between' }}>
                                 <button type="button" onClick={prevStep} style={{ padding: '0.75rem', border: 'none', borderRadius: '4px', backgroundColor: '#6c757d', color: 'white', fontSize: '1rem', cursor: 'pointer' }}>Back</button>
-                                <button type="submit" style={{ padding: '0.75rem', border: 'none', borderRadius: '4px', backgroundColor: '#007bff', color: 'white', fontSize: '1rem', cursor: 'pointer' }}>Install</button>
+                                <button 
+                                    type="submit" 
+                                    disabled={isInstalling}
+                                    style={{ 
+                                        padding: '0.75rem', 
+                                        border: 'none', 
+                                        borderRadius: '4px', 
+                                        backgroundColor: '#007bff', 
+                                        color: 'white', 
+                                        fontSize: '1rem', 
+                                        cursor: isInstalling ? 'not-allowed' : 'pointer',
+                                        opacity: isInstalling ? 0.7 : 1
+                                    }}
+                                >
+                                    {isInstalling ? 'Installing...' : 'Install'}
+                                </button>
                             </div>
                         </>
                     )}
                 </form>
-                {message && <p style={{ color: 'green', marginTop: '1rem' }}>{message}</p>}
+                {message && (
+                    <div style={{ color: 'green', marginTop: '1rem', textAlign: 'center' }}>
+                        <p>{message}</p>
+                        <p style={{ fontSize: '0.9rem', marginTop: '0.5rem' }}>Redirecting to login page...</p>
+                    </div>
+                )}
                 {error && <p style={{ color: 'red', marginTop: '1rem' }}>{error}</p>}
             </div>
         </div>

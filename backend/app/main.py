@@ -5,6 +5,7 @@ import logging
 import time
 import socket
 import platform
+import os
 
 from app.api.v1 import api_router
 from app.api import setup as setup_router
@@ -96,7 +97,28 @@ def create_app() -> FastAPI:
 
     @app.get("/api/v1/status")
     def get_status():
-        is_configured = os.path.exists('.env')
+        # Check if .env file exists (basic configuration)
+        env_exists = os.path.exists('.env')
+        
+        # Check if setup has been completed by verifying if any users exist in the database
+        # This ensures we only show setup page once during installation
+        setup_completed = False
+        if env_exists:
+            try:
+                from app.db.session import SessionLocal
+                from app.models.user import User
+                
+                db = SessionLocal()
+                user_exists = db.query(User).first() is not None
+                db.close()
+                
+                setup_completed = user_exists
+                logger.info(f"Setup completion check: env_exists={env_exists}, user_exists={user_exists}")
+            except Exception as e:
+                logger.error(f"Error checking if setup is completed: {e}")
+        
+        is_configured = env_exists and setup_completed
+        logger.info(f"System configuration status: {is_configured}")
         return {"configured": is_configured}
     
     # Add startup event handler
