@@ -1,9 +1,9 @@
 import axios from 'axios'
 import { User } from '../types/user'
+import { API_URL } from '../config'
 
-// The API URL should match what the Vite proxy is expecting
+// The API URL is imported from config.ts
 // The Vite proxy will add the /v1 prefix, so we don't need to include it in our paths
-const API_URL = '/api'
 
 // Create axios instance with default config
 const api = axios.create({
@@ -64,16 +64,15 @@ api.interceptors.response.use(
         }
         
         // Try to refresh the token
-        // FIXED: Use URLSearchParams for x-www-form-urlencoded format as required by OAuth2
-        const formData = new URLSearchParams()
-        formData.append('refresh_token', refreshToken)
         console.log('Calling refresh token endpoint')
         
         try {
-          const response = await axios.post('/api/auth/refresh', formData, {
-            baseURL: '',  // Use absolute URL to avoid interceptors
+          const response = await axios.post('/auth/refresh', {
+            refresh_token: refreshToken
+          }, {
+            baseURL: API_URL,  // Use the configured API URL
             headers: {
-              'Content-Type': 'application/x-www-form-urlencoded'
+              'Content-Type': 'application/json'
             }
           })
           
@@ -194,6 +193,8 @@ export const authService = {
     // Send as JSON object with refresh_token field
     const response = await api.post('/auth/refresh', {
       refresh_token: refreshToken
+    }, {
+      baseURL: API_URL  // Ensure we're using the correct base URL
     })
     return response.data
   },
