@@ -2,7 +2,7 @@ import axios from 'axios'
 import { User } from '../types/user'
 
 // The API URL should match what the Vite proxy is expecting
-// The backend already has the /api/v1 prefix, so we need to include v1 in our paths
+// The Vite proxy will add the /v1 prefix, so we don't need to include it in our paths
 const API_URL = '/api'
 
 // Create axios instance with default config

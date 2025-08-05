@@ -30,8 +30,8 @@ export default defineConfig(({ mode }) => {
         target: env.VITE_API_URL || 'http://0.0.0.0:8000',
         changeOrigin: true,
         secure: false,
-        // The backend already has /api/v1 prefix, so we don't need to add it
-        rewrite: (path) => path
+        // Add /v1 prefix to all API requests
+        rewrite: (path) => path.replace(/^\/api/, '/api/v1')
       }
     }
   },
